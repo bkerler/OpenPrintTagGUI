@@ -1,5 +1,6 @@
 # OpenPrintTagGUI
-GUI for the open print tag standard (openprinttag.org)
+GUI for the open print tag standard [openprinttag.org](https://openprinttag.org)
+See specs [here](https://specs.openprinttag.org)
 
 ### Requirements
 - python >= 3.8
