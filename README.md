@@ -25,6 +25,7 @@ python openprinttag_gui.py yourtag.bin
 ### ToDo
 - TD1S integration
 - Read/Write directly to tag using NFC Writer
+- Add more default filament data and colors
 
 ### Currently supported
 - Read/write binary blobs that can be written using ProxMark3 cli
