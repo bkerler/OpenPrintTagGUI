@@ -1,0 +1,92 @@
+{
+  "Geetech": {
+          "PLA": {
+               "weight": [195, 1000, 1000],
+               "material": "PLA",
+               "density": 1.25,
+               "bed": [
+                    60,
+                    80
+               ],
+               "nozzle": [
+                    185,
+                    210
+               ]
+          },
+          "Matte PLA": {
+               "weight": [195, 1000, 1000],
+               "material": "PLA",
+               "density": 1.25,
+               "bed": [
+                    50,
+                    70
+               ],
+               "nozzle": [
+                    190,
+                    220
+               ],
+               "properties": [
+                    "Matte"
+               ]
+          },
+          "Silk PLA": {
+               "weight": [195, 1000, 1000],
+               "material": "PLA",
+               "density": 1.25,
+               "bed": [
+                    40,
+                    60
+               ],
+               "nozzle": [
+                    200,
+                    230
+               ],
+               "properties": [
+                    "Silk"
+               ]
+          },
+          "Glow PLA": {
+               "weight": [195, 1000, 1000],
+               "material": "PLA",
+               "density": 1.25,
+               "bed": [
+                    50,
+                    70
+               ],
+               "nozzle": [
+                    190,
+                    230
+               ],
+               "properties": [
+                    "Abrasive",
+                    "Glow in the Dark"
+               ]
+          },
+          "ABS": {
+               "weight": [195, 1000, 1000],
+               "material": "ABS",
+               "density": 1.04,
+               "bed": [
+                    70,
+                    90
+               ],
+               "nozzle": [
+                    230,
+                    240
+               ]
+          },
+          "PETG": {
+               "weight": [195, 1000, 1000],
+               "material": "PETG",
+               "density": 1.27,
+               "bed": [
+                    80,
+                    90
+               ],
+               "nozzle": [
+                    220,
+                    240
+               ]
+          }
+     }
+}

@@ -1,0 +1,21 @@
+{
+  "Tinmorry": {
+    "PETG-CF": {
+      "weight": [184, 1000, 1000],
+      "material": "PETG",
+      "density": 1.25,
+      "nozzle": [
+        240,
+        270
+      ],
+      "bed": [
+        75,
+        90
+      ],
+      "properties": [
+        "Abrasive",
+        "Contains Carbon Fiber"
+      ]
+    }
+  }
+}

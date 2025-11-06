@@ -1,0 +1,96 @@
+{
+     "\uD83E\uDDEC Biological": {
+          "Antibacterial": "antibacterial",
+          "Air Filtering": "air_filtering",
+          "Bio-Based": "bio_based",
+          "Biocompatible": "biocompatible",
+          "Filtration Recommended": "filtration_recommended",
+          "Home Compostable": "home_compostable",
+          "Industrially Compostable": "industrially_compostable"
+     },
+     "\u2699\uFE0F Physical": {
+          "Abrasive": "abrasive",
+          "Castable": "castable",
+          "Foaming": "foaming",
+          "High Temperature": "high_temperature",
+          "Paramagnetic": "paramagnetic",
+          "Radiation Shielding": "radiation_shielding",
+          "Self-Extinguishing": "self_extinguishing"
+     },
+     "\u26a1 Electrical": {
+          "Conductive": "conductive",
+          "ESD Safe": "esd_safe"
+     },
+     "\ud83e\uddea Chemical": {
+          "Blend": "blend",
+          "IPA Soluble": "ipa_soluble",
+          "Limonene Soluble": "limonene_soluble",
+          "Low Outgassing": "low_outgassing",
+          "Water Soluble": "water_soluble"
+     },
+     "\ud83c\udfa8 Visual & Color": {
+          "Coextruded": "coextruded",
+          "Glitter": "glitter",
+          "Glow in the Dark": "glow_in_the_dark",
+          "Gradual Color Change": "gradual_color_change",
+          "Illuminescent Color Change": "illuminescent_color_change",
+          "Iridescent": "iridescent",
+          "Matte": "matte",
+          "Neon (UV)": "neon_(uv)",
+          "Pearlescent": "pearlescent",
+          "Silk": "silk",
+          "Temperature Color Change": "temperature_color_change",
+          "Translucent": "translucent",
+          "Transparent": "transparent",
+          "Without Pigments": "without_pigments"
+     },
+     "\ud83d\udda4 Carbon": {
+          "Contains Carbon": "contains_carbon",
+          "Contains Carbon Fiber": "contains_carbon_fiber",
+          "Contains Carbon Nano Tubes": "contains_carbon_nano_tubes"
+     },
+     "\ud83d\udd32 Glass & Kevlar": {
+          "Contains Glass": "contains_glass",
+          "Contains Glass Fiber": "contains_glass_fiber",
+          "Contains Kevlar": "contains_kevlar"
+     },
+     "\u26f0\ufe0f Minerals": {
+          "Contains Magnetite": "contains_magnetite",
+          "Contains Stone": "contains_stone"
+     },
+     "\ud83c\udf3f Organic Materials": {
+          "Contains Algae": "contains_algae",
+          "Contains Bamboo": "contains_bamboo",
+          "Contains Cork": "contains_cork",
+          "Contains Organic Material": "contains_organic_material",
+          "Contains Pine": "contains_pine",
+          "Contains Wax": "contains_wax",
+          "Contains Wood": "contains_wood"
+     },
+     "\ud83c\udffa Ceramic": {
+          "Contains Ceramic": "contains_ceramic",
+          "Contains Boron Carbide": "contains_boron_carbide"
+     },
+     "\ud83d\udd29 Metals": {
+          "Contains Aluminium": "contains_aluminium",
+          "Contains Brass": "contains_brass",
+          "Contains Bronze": "contains_bronze",
+          "Contains Copper": "contains_copper",
+          "Contains Iron": "contains_iron",
+          "Contains Metal": "contains_metal",
+          "Contains Steel": "contains_steel",
+          "Contains Silver": "contains_silver",
+          "Contains Tungsten": "contains_tungsten"
+     },
+     "\ud83c\udfad Imitation": {
+          "Imitates Metal": "imitates_metal",
+          "Imitates Marble": "imitates_marble",
+          "Imitates Stone": "imitates_stone",
+          "Imitates Wood": "imitates_wood"
+     },
+     "\ud83d\udce6 Other": {
+          "Lithophane": "lithophane",
+          "Recycled": "recycled",
+          "Limited edition": "limited_edition"
+     }
+}

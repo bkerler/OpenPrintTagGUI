@@ -1,0 +1,31 @@
+{
+  "Fillamentum": {
+    "Timberfill": {
+      "weight": [230, 1000, 1000],
+      "material": "PLA",
+      "density": 1.15,
+      "colors": {
+        "Champagne": "#bab19c",
+        "Light Wood": "#e4c6a4",
+        "Rosewood": "#8a7367",
+        "Cinnamon": "#dcb198",
+        "Redheart": "#79263c",
+        "Southern Pine": "#e89a57",
+        "Charcoal": "#3f3f3e",
+        "Terracotta": "#e26e40"
+      },
+      "nozzle": [
+        165,
+        185
+      ],
+      "bed": [
+        40,
+        55
+      ],
+      "properties": [
+        "Abrasive",
+        "Contains Wood"
+      ]
+    }
+  }
+}

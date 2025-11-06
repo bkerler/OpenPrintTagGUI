@@ -1,0 +1,30 @@
+{
+  "Smart Materials 3D": {
+    "Smartfil Wood": {
+      "weight": [230, 1000, 1000],
+      "material": "PLA",
+      "density": 1.58,
+      "colors":{
+        "Acacia": "#AD9672",
+        "Teka": "#B06B4D",
+        "Sapelly": "#924D4E",
+        "Wenge": "#373737",
+        "Maple": "#edece9",
+        "Willow": "#eaecea",
+        "Ash": "#d3cab9"
+      },
+      "nozzle": [
+        200,
+        220
+      ],
+      "bed": [
+        0,
+        60
+      ],
+      "properties": [
+        "Abrasive",
+        "Contains Wood"
+      ]
+    }
+  }
+}

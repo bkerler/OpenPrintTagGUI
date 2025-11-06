@@ -1,0 +1,56 @@
+{
+  "Polymaker": {
+    "PolyMax PC": {
+      "weight": [245, 1000, 1000],
+      "material": "PC",
+      "density": 1.19,
+      "bed": [
+        90,
+        105
+      ],
+      "nozzle": [
+        250,
+        270
+      ]
+    },
+    "PolyMax PLA": {
+      "weight": [245, 1000, 1000],
+      "material": "PLA",
+      "density": 1.24,
+      "bed": [
+        25,
+        60
+      ],
+      "nozzle": [
+        190,
+        230
+      ]
+    },
+    "PolyTerra PLA": {
+      "weight": [245, 1000, 1000],
+      "material": "PLA",
+      "density": 1.31,
+      "bed": [
+        25,
+        60
+      ],
+      "nozzle": [
+        190,
+        230
+      ]
+    },
+    "PolyLite ABS": {
+      "weight": [245, 1000, 1000],
+      "material": "ABS",
+      "density": 1.12,
+      "bed": [
+        90,
+        100
+      ],
+      "nozzle": [
+        245,
+        265
+      ]
+    }
+  }
+}

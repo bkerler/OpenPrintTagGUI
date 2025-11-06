@@ -1,0 +1,3 @@
+[submodule "OpenPrintTag"]
+	path = Library/OpenPrintTag
+	url = https://github.com/prusa3d/OpenPrintTag
