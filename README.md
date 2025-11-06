@@ -1,37 +1,50 @@
 # OpenPrintTagGUI
+
 GUI for the open print tag standard [openprinttag.org](https://openprinttag.org)
 See specs [here](https://specs.openprinttag.org)
 
-### Requirements
-- python >= 3.8
+## Requirements
 
-### Installation
+- [uv](ttps://docs.astral.sh/uv/)
+- python >= 3.10
+
+## Installation
+
 ```bash
 git clone https://github.com/bkerler/OpenPrintTagGUI
 git submodule init
 git submodule update
-pip3 install -r requirements.txt
+uv sync --frozen
+
+source .venv/bin/activate
+
 ```
 
-### Usage
-```bash
+## Usage
+
+```shell
 python openprinttag_gui.py
 ```
+
 or opening your tag binary directly
-```bash
+
+```shell
 python openprinttag_gui.py yourtag.bin
 ```
 
-### ToDo
+## ToDo
+
 - TD1S integration
 - Read/Write directly to tag using NFC Writer
 - Add more default filament data and colors
 
-### Currently supported
+## Currently supported
+
 - Read/write binary blobs that can be written using ProxMark3 cli
 
 ### Add custom filament to default settings
-```
+
+```json
 {
   "Prusament": {
     "My special ASA": {
@@ -42,14 +55,14 @@ python openprinttag_gui.py yourtag.bin
         250,
         270
       ],
-      "bed": [`
+      "bed": [
         105,
         115
       ],
       "properties": [
         "Abrasive",
         "Contains Carbon Fiber"
-      ]
+      ],
       "colors": {
         "Jet Black": ["#24292A",0.4,"https://www.prusa3d.com/product/prusament-asa-jet-black-800g-nfc/"],
         "Lipstick Red": ["#D02F37",0.4,"https://www.prusa3d.com/product/prusament-asa-lipstick-red-800g-nfc/"],
@@ -61,6 +74,7 @@ python openprinttag_gui.py yourtag.bin
         "Prusa Pro Green": ["#33d3b6",1.6,"https://www.prusa3d.com/product/prusament-asa-prusa-pro-green-800g-nfc/"]
       }
     },
+  },
 }
 ```
 
@@ -76,19 +90,24 @@ python openprinttag_gui.py yourtag.bin
 - <b>"properties" field</b> = tags, see [data/filament/material_properties.json](data/filament/material_properties.json)
 - <b>"colors" field</b> = each field has structure ```"name" : [hex_color,opacity_transmission_distance,url]```
 
-### Read/Write using proxmark3 (ICODE-SLIX SLIX2 ISO15693) or NXP TagInfo App
+## Read/Write using proxmark3 (ICODE-SLIX SLIX2 ISO15693) or NXP TagInfo App
+
 using [Icemans Proxmark3 Fork](https://github.com/RfidResearchGroup/proxmark3)
+
 - Identify tag
-```bash
-hf 15 info
-```
+
+  ```bash
+  hf 15 info
+  ```
 
 - Read tag
-```bash
-hf 15 dump
-```
+
+  ```bash
+  hf 15 dump
+  ```
 
 - Write tag
-```bash
-hf 15 restore f mytag.bin
-```
+
+  ```bash
+  hf 15 restore f mytag.bin
+  ```
