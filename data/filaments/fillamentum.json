@@ -23,8 +23,8 @@
         55
       ],
       "properties": [
-        "Abrasive",
-        "Contains Wood"
+        "abrasive",
+        "contains_wood"
       ]
     }
   }

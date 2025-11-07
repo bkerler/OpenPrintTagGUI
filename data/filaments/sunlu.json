@@ -104,8 +104,8 @@
                     220
                ],
                "properties": [
-                    "Abrasive",
-                    "Contains Marble"
+                    "abrasive",
+                    "contains_marble"
                ]
           },
           "PLA WOOD": {
@@ -121,8 +121,8 @@
                     215
                ],
                "properties": [
-                    "Abrasive",
-                    "Contains Wood"
+                    "abrasive",
+                    "contains_wood"
                ]
           },
           "PLA Carbon Fiber": {
@@ -138,8 +138,8 @@
                     225
                ],
                "properties": [
-                    "Abrasive",
-                    "Contains Carbon Fiber"
+                    "abrasive",
+                    "contains_carbon_fiber"
                ]
           },
           "Matte PLA": {

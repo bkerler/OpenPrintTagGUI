@@ -13,8 +13,8 @@
                     260
                ],
                "properties": [
-                    "Abrasive",
-                    "Contains Carbon"
+                    "abrasive",
+                    "contains_carbon"
                ]
           },
           "ABS Carbon": {
@@ -30,8 +30,8 @@
                     270
                ],
                "properties": [
-                    "Abrasive",
-                    "Contains Carbon"
+                    "abrasive",
+                    "contains_carbon"
                ]
           }
      }

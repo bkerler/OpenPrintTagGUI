@@ -205,7 +205,7 @@ class PropertyFilterWidget(QWidget):
     def set_property_checked(self, property_name: str, checked: bool = True):
         """
         Check or uncheck a property by its exact name.
-        Example: widget.set_property_checked("Contains Copper", True)
+        Example: widget.set_property_checked("contains_copper", True)
         """
         found = False
         for cat_name, cat_item in self.cat_items.items():

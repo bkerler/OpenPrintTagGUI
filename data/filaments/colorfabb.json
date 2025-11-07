@@ -14,8 +14,8 @@
         60
       ],
       "properties": [
-        "Abrasive",
-        "Contains Bronze"
+        "abrasive",
+        "contains_bronze"
       ]
     },
     "steelFill": {
@@ -32,8 +32,8 @@
         60
       ],
       "properties": [
-        "Abrasive",
-        "Contains Steel"
+        "abrasive",
+        "contains_steel"
       ]
     },
     "copperFill": {
@@ -50,8 +50,8 @@
         60
       ],
       "properties": [
-        "Abrasive",
-        "Contains Copper"
+        "abrasive",
+        "contains_copper"
       ]
     },
     "woodFill": {
@@ -68,8 +68,8 @@
         60
       ],
       "properties": [
-        "Abrasive",
-        "Contains Wood"
+        "abrasive",
+        "contains_wood"
       ]
     },
     "corkFill": {
@@ -86,8 +86,8 @@
         60
       ],
       "properties": [
-        "Abrasive",
-        "Contains Cork"
+        "abrasive",
+        "contains_cork"
       ]
     },
     "XT-CF20": {
@@ -104,8 +104,8 @@
         260
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     }
   }

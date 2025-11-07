@@ -13,8 +13,8 @@
         90
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     }
   }

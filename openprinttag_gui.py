@@ -573,10 +573,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         colorlabel.setPixmap(pix)
 
     def add_material_property(self, materialprops):
+        self.matpropwidget.uncheck()
+        self.matpropwidget.filter_check.setChecked(False)
         properties = materialprops["properties"]
-        for prop in properties:
-            self.matpropwidget.set_property_checked(property_name=prop, checked=True)
-            tag = self.matpropwidget.get_tag(prop)
+        for tag in properties:
+            self.matpropwidget.set_property_checked(property_name=self.matpropwidget.get_name(tag), checked=True)
             if tag is not None:
                 dq = deque()
                 dq.append(tag)
@@ -588,6 +589,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             if subprop is not None:
                                 self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
                             dq.append(subprop)
+        self.matpropwidget.filter_check.setChecked(True)
+        self.matpropwidget.repaint()
 
     def on_colorname_changed(self):
         self.includeurlcheckbox.setChecked(False)

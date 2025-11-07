@@ -26,8 +26,8 @@
         65
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     },
     "PETG-CF": {
@@ -43,8 +43,8 @@
         80
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     },
     "PETG-GF": {
@@ -60,8 +60,8 @@
         80
       ],
       "properties": [
-        "Abrasive",
-        "Contains Glass Fiber"
+        "abrasive",
+        "contains_glass_fiber"
       ]
     },
     "PETG-HS Matte": {
@@ -132,8 +132,8 @@
         100
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     },
     "PAHT-CF": {
@@ -149,8 +149,8 @@
         100
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     },
     "PET-CF": {
@@ -166,8 +166,8 @@
         100
       ],
       "properties": [
-        "Abrasive",
-        "Contains Carbon Fiber"
+        "abrasive",
+        "contains_carbon_fiber"
       ]
     },
     "TPU": {
