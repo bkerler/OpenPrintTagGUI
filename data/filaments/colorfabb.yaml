@@ -1,0 +1,98 @@
+brand_name: "ColorFabb"
+material_name:
+  "bronzeFill":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 3.9
+    min_bed_temperature: 50
+    max_bed_temperature: 60
+    min_print_temperature: 195
+    max_print_temperature: 220
+    colors:
+      Default:
+        primary_color: "#804040"
+        tags:
+          - abrasive
+          - contains_bronze
+  "steelFill":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 3.13
+    min_bed_temperature: 50
+    max_bed_temperature: 60
+    min_print_temperature: 195
+    max_print_temperature: 220
+    colors:
+      Default:
+        primary_color: "#808080"
+        tags:
+          - abrasive
+          - contains_steel
+  "copperFill":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 3.9
+    min_bed_temperature: 50
+    max_bed_temperature: 60
+    min_print_temperature: 195
+    max_print_temperature: 220
+    colors:
+      Default:
+        primary_color: "#82603E"
+        tags:
+          - abrasive
+          - contains_copper
+  "woodFill":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 1.15
+    min_bed_temperature: 50
+    max_bed_temperature: 60
+    min_print_temperature: 195
+    max_print_temperature: 220
+    colors:
+      Default:
+        primary_color: "#DFC287"
+        tags:
+          - abrasive
+          - contains_wood
+  "corkFill":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 1.18
+    min_bed_temperature: 50
+    max_bed_temperature: 60
+    min_print_temperature: 195
+    max_print_temperature: 220
+    colors:
+      Default:
+        primary_color: "#634D33"
+        tags:
+          - abrasive
+          - contains_cork
+  "XT-CF20":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PETG
+    density: 1.27
+    min_bed_temperature: 60
+    max_bed_temperature: 70
+    min_print_temperature: 240
+    max_print_temperature: 260
+    colors:
+      Default:
+        primary_color: "#804040"
+        tags:
+          - abrasive
+          - contains_carbon_fiber

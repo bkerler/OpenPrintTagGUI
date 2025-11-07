@@ -89,11 +89,10 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.default_filamenttypes = {}
         self.setupUi(self)
         self.add_default_manufacturers()
-        self.add_default_filaments()
-        self.add_material_properties()
+        self.setup_material()
+        self.add_default_material_properties()
         self.add_filaments()
-        # We default to Prusament here
-        self.brandnamebox.setCurrentText("Prusament")
+
         self.colorlabel.mousePressEvent = self.open_color_picker
         self.secondary_colorlabel_0.mousePressEvent = self.open_secondary0_color_picker
         self.secondary_colorlabel_1.mousePressEvent = self.open_secondary1_color_picker
@@ -114,6 +113,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.writetagbtn.setDisabled(True)
         self.td1sbutton.setDisabled(True)
         # end ToDo
+
+        # We default to Prusament here
+        self.brandnamebox.setCurrentText("Prusament")
+        self.materialnamebox.setCurrentIndex(0)
+        self.colornamebox.setCurrentIndex(0)
 
     def locale_to_timestamp(self, date_str):
         dt = QLocale().toDate(date_str, QLocale.ShortFormat)
@@ -272,6 +276,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.consumedweightbox.setValue(fields["aux"]["consumed_weight"])
         if "main" in fields:
             main = fields["main"]
+            if "brand_name" in main:
+                self.brandnamebox.setCurrentText(main["brand_name"])
+            if "material_name" in main:
+                self.materialnamebox.setCurrentText(main["material_name"])
+            elif "material_abbreviation" in main:
+                self.materialnamebox.setCurrentText(main["material_abbreviation"])
             if "gtin" in main:
                 self.gtinedit.setText(str(main["gtin"]))
             if "material_class" in main:
@@ -287,20 +297,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     self.materialclassbox.setCurrentText(cur_material_class)
             if "material_type" in main:
                 cur_material_type = main["material_type"]
-                found = False
-                for filament in self.default_filamenttypes:
-                    cf = filament.split(" ")[0]
-                    if cf == cur_material_type:
-                        found = True
-                        self.materialtypebox.setCurrentText(filament)
-                if not found:
+                cf = self.default_filamenttypes.get(cur_material_type)
+                if cf is not None:
+                    if "name" in cf:
+                        self.materialtypebox.setCurrentText(cur_material_type + " - "+cf["name"])
+                    else:
+                        self.materialtypebox.setCurrentText(cur_material_type)
+                else:
                     self.materialtypebox.setCurrentText(cur_material_type)
-            if "brand_name" in main:
-                self.brandnamebox.setCurrentText(main["brand_name"])
-            if "material_name" in main:
-                self.materialnamebox.setCurrentText(main["material_name"])
-            elif "material_abbreviation" in main:
-                self.materialnamebox.setCurrentText(main["material_abbreviation"])
             if "manufactured_date" in main:
                 timestamp = main["manufactured_date"]
                 dt = QDateTime()
@@ -319,9 +323,23 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.actualweightbox.setValue(main["actual_netto_full_weight"])
             if "empty_container_weight" in main:
                 self.emptycontainerbox.setValue(main["empty_container_weight"])
+            if "manufactured_date" in main:
+                timestamp = main["manufactured_date"]
+                dt = QDateTime()
+                dt = dt.toUTC()
+                dt.setSecsSinceEpoch(timestamp)
+                self.dateedit.setText(QLocale().toString(dt.date(), QLocale.ShortFormat))
+            if "expiration_date" in main:
+                timestamp = main["expiration_date"]
+                dt = QDateTime()
+                dt = dt.toUTC()
+                dt.setSecsSinceEpoch(timestamp)
+                self.expdateedit.setText(QLocale().toString(dt.date(), QLocale.ShortFormat))
             if "primary_color" in main:
+                self.colornamebox.clear()
                 if "hex" in main["primary_color"]:
                     self.primarycoloredit.setText('#' + main["primary_color"]["hex"])
+                    self.update_color_label("#" + main["primary_color"]["hex"], self.colorlabel)
             for i in range(5):
                 if f"secondary_color_{i}" in main:
                     if "hex" in main[f"secondary_color_{i}"]:
@@ -359,13 +377,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.maxbedtempbox.setValue(main["max_bed_temperature"])
             if "transmission_distance" in main:
                 self.transmissiondistanceedit.setText("%0.1f" % main["transmission_distance"])
+            self.matpropwidget.filter_check.setChecked(False)
             if "tags" in main:
                 for tag in main["tags"]:
                     prop = self.matpropwidget.get_name(tag)
                     if prop is not None:
                         self.matpropwidget.set_property_checked(property_name=prop, checked=True)
                         self.check_tag_implies(tag)
-        self.matpropwidget.filter_check.setChecked(True)
+                self.matpropwidget.filter_check.setChecked(True)
 
     def on_load_file(self):
         filename, selfilter = QFileDialog.getOpenFileName(self, "Select Tag data file")
@@ -527,7 +546,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def read_openprinttag_material_types(self) -> dict:
         materialtypes = {}
-        default_filamenttypes = json.loads(open(os.path.join(script_path, "data", "material_temps.json")).read())
+        mt_filename = os.path.join(script_path, "data", "material_temps.yaml")
+        if not os.path.exists(mt_filename):
+            self.show_message_box(title="Error", message=f"Couldn't find material temp database at {mt_filename}",
+                                  icon=QMessageBox.Icon.Critical)
+        default_filamenttypes = yaml.safe_load(open(mt_filename).read())
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_type_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title="Error", message=f"Couldn't find material type database at {mc_filename}",
@@ -549,7 +572,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     materialtypes[abbr]["min_temp"] = default_filamenttypes[abbr]["min_temp"]
         return materialtypes
 
-    def add_default_filaments(self):
+    def setup_material(self):
         self.default_filamenttypes = self.read_openprinttag_material_types()
         materialclasses = self.read_openprinttag_material_class()
         self.materialclassbox.clear()
@@ -597,13 +620,98 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.secondarycolor0edit_3.setText("")
         self.secondarycolor0edit_4.setText("")
 
-    def add_material_properties(self):
+    def add_default_material_properties(self):
         self.tags = self.read_openprinttag_tags()
         matprop_filename = os.path.join(script_path, "data", "material_properties.json")
         if os.path.exists(matprop_filename):
             matprop = open(matprop_filename).read()
             self.matpropwidget.load_json(matprop)
 
+    def setup_color(self, brandname:str, materialname:str, colorname:str):
+        if brandname in self.filaments and materialname in self.filaments[brandname]:
+            cm = self.filaments[brandname][materialname]
+            self.colornamebox.setCurrentText(colorname)
+            if "colors" not in cm:
+                return
+            color_props = cm["colors"].get(colorname)
+            if color_props is None:
+                return
+            if "primary_color" in color_props:
+                color = color_props["primary_color"]
+                if "RAL" in color:
+                    self.primarycolorraledit.setText(color)
+                    color = ral_to_hex(color)
+                else:
+                    self.primarycolorraledit.setText(hex_to_ral(color))
+                self.primarycoloredit.setText(color)
+                self.update_color_label(color, self.colorlabel)
+            if "transmission_distance" in color_props:
+                transmission_distance = color_props["transmission_distance"]
+                if transmission_distance is not None:
+                    self.transmissiondistanceedit.setText("%.01f" % color_props["transmission_distance"])
+            self.includeurlcheckbox.setChecked(False)
+            if "uri" in color_props:
+                uri = color_props["uri"]
+                if uri is not None:
+                    self.urledit.setText(uri)
+                    self.includeurlcheckbox.setChecked(True)
+            else:
+                self.includeurlcheckbox.setChecked(False)
+                self.urledit.setText("")
+
+            if "tags" in color_props:
+                self.add_material_properties(color_props["tags"])
+
+    def setup_default_material(self, brandname, materialname):
+        if brandname in self.filaments:
+            if materialname in self.filaments[brandname]:
+                self.materialnamebox.setCurrentText(materialname)
+                cm = self.filaments[brandname][materialname]
+                if "material_type" in cm:
+                    materialtype = cm["material_type"]
+                    cf = self.default_filamenttypes.get(materialtype)
+                    if cf is not None and "name" in cf:
+                        self.materialtypebox.setCurrentText(materialtype + " - " + cf["name"])
+                        if "bed_max_temp" in cf:
+                            self.maxbedtempbox.setValue(cf["bed_max_temp"])
+                        if "bed_min_temp" in cf:
+                            self.minbedtempbox.setValue(cf["bed_min_temp"])
+                        if "max_temp" in cf:
+                            self.maxprinttempbox.setValue(cf["max_temp"])
+                        if "min_temp" in cf:
+                            self.minprinttempbox.setValue(cf["min_temp"])
+                        if "prehead_temp" in cf:
+                            self.preheattempbox.setValue(cf["preheat_temp"])
+                    else:
+                        self.materialtypebox.setCurrentText(materialtype)
+                if "empty_container_weight" in cm:
+                    self.emptycontainerbox.setValue(cm["empty_container_weight"])
+                if "nominal_netto_full_weight" in cm:
+                    self.nominalweightbox.setValue(cm["nominal_netto_full_weight"])
+                if "actual_netto_full_weight" in cm:
+                    self.actualweightbox.setValue(cm["actual_netto_full_weight"])
+                if "density" in cm:
+                    self.densityedit.setText("%.02f" % cm["density"])
+                if "min_print_temperature" in cm:
+                    self.minprinttempbox.setValue(cm["min_print_temperature"])
+                if "max_print_temperature" in cm:
+                    self.maxprinttempbox.setValue(cm["max_print_temperature"])
+                if "min_bed_temperature" in cm:
+                    self.minbedtempbox.setValue(cm["min_bed_temperature"])
+                if "max_bed_temperature" in cm:
+                    self.maxbedtempbox.setValue(cm["max_bed_temperature"])
+                if "preheat_temperature" in cm:
+                    self.preheattempbox.setValue(cm["preheat_temperature"])
+                if "diameter" in cm:
+                    diameter = cm["diameter"]
+                    self.diameteredit.setText("%.02f" % diameter)
+                else:
+                    self.diameteredit.setText("1.75")
+                self.colornamebox.clear()
+                if "colors" in cm:
+                    for colorname in cm["colors"]:
+                        self.colornamebox.addItem(f"{colorname}")
+                    self.colornamebox.setCurrentIndex(0)
     def on_manufacturer_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
@@ -613,13 +721,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if manufacturer in self.filaments:
             found = True
             self.materialnamebox.clear()
-            for material in self.filaments[manufacturer]:
-                if "weight" in self.filaments[manufacturer][material]:
-                    emptycontainer, nominalweight, actualweight = self.filaments[manufacturer][material]["weight"]
-                    self.emptycontainerbox.setValue(emptycontainer)
-                    self.nominalweightbox.setValue(nominalweight)
-                    self.actualweightbox.setValue(actualweight)
-                self.materialnamebox.addItem(material)
+            for materialname in self.filaments[manufacturer]:
+                self.materialnamebox.addItem(materialname)
             self.materialnamebox.model().sort(0, Qt.AscendingOrder)
             self.materialnamebox.setCurrentIndex(0)
         self.matpropwidget.filter_check.setChecked(found)
@@ -630,10 +733,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         pix.fill(QColor(hex_color))
         colorlabel.setPixmap(pix)
 
-    def add_material_property(self, materialprops):
+    def add_material_properties(self, properties):
         self.matpropwidget.uncheck()
         self.matpropwidget.filter_check.setChecked(False)
-        properties = materialprops["properties"]
         for tag in properties:
             self.matpropwidget.set_property_checked(property_name=self.matpropwidget.get_name(tag), checked=True)
             if tag is not None:
@@ -642,133 +744,42 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.matpropwidget.repaint()
 
     def on_colorname_changed(self):
-        self.includeurlcheckbox.setChecked(False)
-        self.urledit.clear()
         self.reset_colors()
-        current_manufacturer = self.brandnamebox.currentText()
-        current_material = self.materialnamebox.currentText()
-        current_colorname = self.colornamebox.currentText()
-        if current_manufacturer in self.filaments:
-            for material in self.filaments[current_manufacturer]:
-                if current_material == material:
-                    materialprops = self.filaments[current_manufacturer][material]
-                    if "diameter" in materialprops:
-                        diameter = materialprops["diameter"]
-                        self.diameteredit.setText("%.02f" % diameter)
-                    else:
-                        self.diameteredit.setText("1.75")
-                    if "color" in materialprops:
-                        hexcolor = materialprops["color"]
-                        if isinstance(hexcolor, list):
-                            if len(hexcolor) == 2:
-                                hexcolor, transmission_distance = materialprops["color"]
-                                self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                            elif len(hexcolor) == 3:
-                                hexcolor, transmission_distance, uri = materialprops["color"]
-                                self.urledit.setText(uri)
-                                self.includeurlcheckbox.setChecked(True)
-                                self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                        self.primarycoloredit.setText(hexcolor)
-                        self.primarycolorraledit.setText(hex_to_ral(hexcolor))
-                    elif "colors" in materialprops:
-                        for colorname in materialprops["colors"]:
-                            if colorname == current_colorname:
-                                hexcolor = materialprops["colors"][colorname]
-                                if isinstance(hexcolor, list):
-                                    uri = ""
-                                    if len(materialprops["colors"][colorname]) == 2:
-                                        hexcolor, transmission_distance = materialprops["colors"][colorname]
-                                        self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                                    elif len(materialprops["colors"][colorname]) == 3:
-                                        hexcolor, transmission_distance, uri = materialprops["colors"][colorname]
-                                        self.urledit.setText(uri)
-                                        self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                                    self.includeurlcheckbox.setChecked(True) \
-                                        if uri != "" else self.includeurlcheckbox.setChecked(False)
-                                    self.urledit.setText(uri)
-
-                                if "RAL" in hexcolor:
-                                    self.primarycolorraledit.setText(hexcolor)
-                                    hexcolor = ral_to_hex(hexcolor)
-                                else:
-                                    self.primarycolorraledit.setText(hex_to_ral(hexcolor))
-                                self.primarycoloredit.setText(hexcolor)
-                                self.update_color_label(hexcolor, self.colorlabel)
-                                return
-                    if "properties" in materialprops:
-                        self.add_material_property(materialprops)
+        brand_name = self.brandnamebox.currentText()
+        material_name = self.materialnamebox.currentText()
+        color_name = self.colornamebox.currentText()
+        if brand_name in self.filaments:
+            materialprops = self.filaments[brand_name].get(material_name)
+            if materialprops is not None:
+                self.setup_color(brand_name, material_name, color_name)
 
     def on_materialname_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
         self.reset_colors()
-        current_manufacturer = self.brandnamebox.currentText()
-        current_material = self.materialnamebox.currentText()
-        if current_manufacturer in self.filaments:
-            for material in self.filaments[current_manufacturer]:
-                if current_material == material:
-                    materialprops = self.filaments[current_manufacturer][material]
-                    self.colornamebox.clear()
-                    if "diameter" in materialprops:
-                        diameter = materialprops["diameter"]
-                        self.diameteredit.setText("%.02f" % diameter)
-                    else:
-                        self.diameteredit.setText("1.75")
-                    if "colors" in materialprops:
-                        for colorname in materialprops["colors"]:
-                            if "RAL" in colorname:
-                                colorname = ral_to_hex(colorname)
-                            self.colornamebox.addItem(f"{colorname}")
-                    elif "color" in materialprops:
-                        color = materialprops["color"]
-                        if isinstance(color, list):
-                            if len(color) == 2:
-                                color, transmission_distance = materialprops["color"]
-                                self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                            elif len(color) == 3:
-                                color, transmission_distance, uri = materialprops["color"]
-                                self.transmissiondistanceedit.setText("%.01f" % transmission_distance)
-                                self.urledit.setText(uri)
-                                self.includeurlcheckbox.setChecked(True)
-                        self.primarycoloredit.setText(color)
-                        self.primarycolorraledit.setText(hex_to_ral(color))
-                        self.update_color_label(color, self.colorlabel)
-                    if "density" in materialprops:
-                        density = materialprops["density"]
-                        self.densityedit.setText("%.02f" % density)
-                    if "bed" in materialprops:
-                        bed_temps = materialprops["bed"]
-                        self.minbedtempbox.setValue(bed_temps[0])
-                        self.maxbedtempbox.setValue(bed_temps[1])
-                    if "nozzle" in materialprops:
-                        nozzle_temps = materialprops["nozzle"]
-                        self.minprinttempbox.setValue(nozzle_temps[0])
-                        self.maxprinttempbox.setValue(nozzle_temps[1])
-                    if "material" in materialprops:
-                        material = materialprops["material"]
-                        for filament in self.default_filamenttypes:
-                            cf = filament.split(" ")[0]
-                            if cf == material:
-                                self.materialtypebox.setCurrentText(filament)
-                    if "properties" in materialprops:
-                        self.add_material_property(materialprops)
-                    self.colornamebox.model().sort(0, Qt.AscendingOrder)
-                    self.colornamebox.setCurrentIndex(0)
-                    break
+        brandname = self.brandnamebox.currentText()
+        materialname = self.materialnamebox.currentText()
+        if brandname in self.filaments:
+            materialprops = self.filaments[brandname].get(materialname)
+            if materialprops is not None:
+                self.setup_default_material(brandname, materialname)
 
     def add_filaments(self):
         self.filaments = {}
         for (root, dirs, files) in os.walk(os.path.join(script_path, "data", "filaments"), topdown=True):
             for file in files:
                 filename = os.path.join(root, file)
-                try:
-                    filament_dict = json.loads(open(filename).read())
-                    for manufacturer in filament_dict:
-                        self.filaments[manufacturer] = filament_dict[manufacturer]
-                except json.JSONDecodeError as e:
-                    print(f"JSON Error in {filename}", e)
-        for manufacturer in self.filaments:
-            self.brandnamebox.addItem(manufacturer)
+                if ".yaml" == filename[-5:]:
+                    try:
+                        filament_dict = yaml.safe_load(open(os.path.join(filename), "r"))
+                        if "brand_name" in filament_dict:
+                            brand_name = filament_dict["brand_name"]
+                            if "material_name" in filament_dict:
+                                self.filaments[brand_name] = filament_dict["material_name"]
+                    except Exception as e:
+                        print(f"YAML Error in {filename}", e)
+        for brand_name in self.filaments:
+            self.brandnamebox.addItem(brand_name)
         self.brandnamebox.setStyleSheet("""
                     combobox-popup: 0;
                     QListWidget::item { padding: 4px; }
@@ -776,7 +787,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 """)
         self.brandnamebox.currentTextChanged.connect(self.on_manufacturer_changed)
         self.brandnamebox.model().sort(0, Qt.AscendingOrder)
-        self.brandnamebox.setCurrentIndex(0)
+
 
     def parse_tag_data(self, data):
         uri = ""

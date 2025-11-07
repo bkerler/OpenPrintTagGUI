@@ -42,51 +42,37 @@ python openprinttag_gui.py yourtag.bin
 - Read/write binary blobs that can be written using ProxMark3 cli
 
 ## Add custom filament to default settings
+- Custom filaments are stored in "data/filaments" in its own file in yaml-Format:
 ```
-{
-  "Prusament": {
-    "My special ASA": {
-      "weight": [193, 850, 850],
-      "material": "ASA",
-      "density": 1.07,
-      "nozzle": [
-        250,
-        270
-      ],
-      "bed": [
-        105,
-        115
-      ],
-      "properties": [
-        "abrasive",
-        "contains_carbon_fiber"
-      ],
-      "colors": {
-        "Jet Black": ["#24292A",0.4,"https://www.prusa3d.com/product/prusament-asa-jet-black-800g-nfc/"],
-        "Lipstick Red": ["#D02F37",0.4,"https://www.prusa3d.com/product/prusament-asa-lipstick-red-800g-nfc/"],
-        "Natural": ["#DFDFD3",0.4,"https://www.prusa3d.com/product/prusament-asa-natural-800g-nfc/"],
-        "Prusa Galaxy Black": ["#3D3E3D",0.4,"https://www.prusa3d.com/product/prusament-asa-prusa-galaxy-black-800g-nfc/"],
-        "Prusa Orange": ["#EA5E1A",0.4,"https://www.prusa3d.com/product/prusament-asa-prusa-orange-800g-nfc/"],
-        "Prusa Sapphire Blue": ["#3B4468",0.3,"https://www.prusa3d.com/product/prusament-asa-prusa-sapphire-blue-800g-nfc/"],
-        "Signal White":["#E3DFD9",2.4,"https://www.prusa3d.com/product/prusament-asa-signal-white-800g-nfc/"],
-        "Prusa Pro Green": ["#33d3b6",1.6,"https://www.prusa3d.com/product/prusament-asa-prusa-pro-green-800g-nfc/"]
-      }
-    }
-  }
-}
+brand_name: "My brand"
+material_name:
+  "My Filament":
+    empty_container_weight: 193
+    nominal_netto_full_weight: 850
+    actual_netto_full_weight: 850
+    material_type: ASA
+    density: 1.07
+    diameter: 2.85
+    min_print_temperature: 250
+    max_print_temperature: 270
+    min_bed_temperature: 105
+    max_bed_temperature: 115
+    colors:
+      Jet Black:
+        primary_color: "#24292A"
+        transmission_distance: 0.4
+        uri: "https://www.mybrand.com/product/myfilament-jet-black-nfc/"
+        tags:
+          - abrasive
+          - contains_carbon_fiber
+      Woody Red:
+        primary_color: "#D02F37"
+        transmission_distance: 0.4
+        uri: "https://www.prusa3d.com/product/prusament-asa-lipstick-red-800g-nfc/"
+        tags:
+          - abrasive
+          - contains_wood
 ```
-
-- Just add a new json or edit an existing filament json in [data/filaments](data/filaments)
-- <b>Brand name</b> = ```Prusament```
-- <b>Material name</b> = ```My special ASA```
-- <b>"material" field</b> = material type abbreviation ```ASA```
-- <b>"density" field</b> = density in g/cm³
-- if no <b>"diameter" field</b> is given, ```1.75``` mm is assumed
-- <b>"weight" field</b> = ```[empty_spool_weight_in_g,nominal_spool_weight_netto_in_g,actual_spool_weight_netto_in_g]```
-- <b>"nozzle" field</b> = ```[min_nozzle_temp_celsius,max_nozzle_temp_celsius]```
-- <b>"bed" field</b> = ```[min_bed_temp_celsius, max_bed_temp_celsius]```
-- <b>"properties" field</b> = tags, see [data/filament/material_properties.json](data/filament/material_properties.json)
-- <b>"colors" field</b> = each field has structure ```"name" : [hex_color,opacity_transmission_distance,url]```
 
 ## Read/Write using proxmark3 (ICODE-SLIX SLIX2 ISO15693) or NXP TagInfo App
 using [Icemans Proxmark3 Fork](https://github.com/RfidResearchGroup/proxmark3)

@@ -1,0 +1,99 @@
+brand_name: "Spectrum"
+material_name:
+  "PET-G Matt":
+    empty_container_weight: 260
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PETG
+    density: 1.35
+    min_bed_temperature: 60
+    max_bed_temperature: 80
+    min_print_temperature: 230
+    max_print_temperature: 255
+    colors:
+      Deep Black:
+        primary_color: "RAL9017"
+        tags:
+          - Matte
+      Dark Grey:
+        primary_color: "RAL7011"
+        tags:
+          - Matte
+      Polar White:
+        primary_color: "RAL9003"
+        tags:
+          - Matte
+      Navy Blue:
+        primary_color: "RAL5002"
+        tags:
+          - Matte
+      Bloody Red:
+        primary_color: "RAL3020"
+        tags:
+          - Matte
+      Lion Orange:
+        primary_color: "RAL2004"
+        tags:
+          - Matte
+      Olive Green:
+        primary_color: "RAL6003"
+        tags:
+          - Matte
+      Desert Storm:
+        primary_color: "RAL1019"
+        tags:
+          - Matte
+      Sand Khaki:
+        primary_color: "RAL1001"
+        tags:
+          - Matte
+      Brown Uniform:
+        primary_color: "RAL7013"
+        tags:
+          - Matte
+  "PET-G HT100":
+    empty_container_weight: 260
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PETG
+    density: 1.18
+    min_bed_temperature: 100
+    max_bed_temperature: 110
+    min_print_temperature: 250
+    max_print_temperature: 280
+    colors:
+      Obsidian Black:
+        primary_color: "RAL9017"
+      Iron Grey:
+        primary_color: "RAL7011"
+      Silver Steel:
+        primary_color: "RAL9007"
+      Traffic Red:
+        primary_color: "RAL3020"
+      Pure White:
+        primary_color: "RAL9016"
+      Transparent Blue:
+        primary_color: "#2745a9"
+      Clear:
+        primary_color: "#E4E7E5"
+  "GreenyHT":
+    empty_container_weight: 260
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 1.54
+    min_bed_temperature: 0
+    max_bed_temperature: 45
+    min_print_temperature: 190
+    max_print_temperature: 220
+    colors:
+      Traffic:
+        primary_color: "RAL9004"
+      Signal:
+        primary_color: "RAL9016"
+      Grey:
+        primary_color: "RAL7005"
+      Light Blue:
+        primary_color: "RAL5012"
+      Strawberry Red:
+        primary_color: "RAL3018"

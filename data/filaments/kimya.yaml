@@ -1,0 +1,32 @@
+brand_name: "Kimya"
+material_name:
+  "PETG Carbon":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PETG
+    density: 1.317
+    min_bed_temperature: 60
+    max_bed_temperature: 100
+    min_print_temperature: 220
+    max_print_temperature: 260
+    colors:
+      Default:
+        tags:
+          - abrasive
+          - contains_carbon
+  "ABS Carbon":
+    empty_container_weight: 236
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: ABS
+    density: 1.032
+    min_bed_temperature: 90
+    max_bed_temperature: 110
+    min_print_temperature: 250
+    max_print_temperature: 270
+    colors:
+      Default:
+        tags:
+          - abrasive
+          - contains_carbon

@@ -1,0 +1,82 @@
+brand_name: "Recreus"
+material_name:
+  "Filaflex 60A":
+    empty_container_weight: 196
+    nominal_netto_full_weight: 500
+    actual_netto_full_weight: 500
+    material_type: TPU
+    density: 1.07
+    min_bed_temperature: 0
+    max_bed_temperature: 45
+    min_print_temperature: 215
+    max_print_temperature: 235
+    colors:
+      Black:
+        primary_color: "#171818"
+      White:
+        primary_color: "#ebebeb"
+      Nude:
+        primary_color: "#f6c8b4"
+  "Filaflex 70A":
+    empty_container_weight: 196
+    nominal_netto_full_weight: 500
+    actual_netto_full_weight: 500
+    material_type: TPU
+    density: 1.08
+    min_bed_temperature: 0
+    max_bed_temperature: 40
+    min_print_temperature: 215
+    max_print_temperature: 235
+    colors:
+      Black:
+        primary_color: "#171818"
+      White:
+        primary_color: "#ebebeb"
+      Red:
+        primary_color: "#f11713"
+      Marine blue:
+        primary_color: "#0d0fb4"
+      Nude:
+        primary_color: "#f6c8b4"
+  "Filaflex 82A":
+    empty_container_weight: 196
+    nominal_netto_full_weight: 500
+    actual_netto_full_weight: 500
+    material_type: TPU
+    density: 1.12
+    min_bed_temperature: 0
+    max_bed_temperature: 50
+    min_print_temperature: 215
+    max_print_temperature: 250
+    colors:
+      Black:
+        primary_color: "#171818"
+      White:
+        primary_color: "#ebebeb"
+      Red:
+        primary_color: "#f11713"
+      Marine blue:
+        primary_color: "#0d0fb4"
+      Nude:
+        primary_color: "#f6c8b4"
+  "Filaflex 95A":
+    empty_container_weight: 196
+    nominal_netto_full_weight: 500
+    actual_netto_full_weight: 500
+    material_type: TPU
+    density: 1.0
+    min_bed_temperature: 0
+    max_bed_temperature: 40
+    min_print_temperature: 215
+    max_print_temperature: 250
+    colors:
+      Black:
+        primary_color: "#171818"
+      White:
+        primary_color: "#ebebeb"
+      Red:
+        primary_color: "#f11713"
+      Marine blue:
+        primary_color: "#0d0fb4"
+      Nude:
+        primary_color: "#f6c8b4"

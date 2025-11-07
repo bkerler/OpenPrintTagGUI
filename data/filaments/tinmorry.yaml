@@ -1,0 +1,17 @@
+brand_name: "Tinmorry"
+material_name:
+  "PETG-CF":
+    empty_container_weight: 184
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PETG
+    density: 1.25
+    min_print_temperature: 240
+    max_print_temperature: 270
+    min_bed_temperature: 75
+    max_bed_temperature: 90
+    colors:
+      Default:
+        tags:
+          - abrasive
+          - contains_carbon_fiber

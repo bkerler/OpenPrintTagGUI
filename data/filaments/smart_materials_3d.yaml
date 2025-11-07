@@ -1,0 +1,48 @@
+brand_name: "Smart Materials 3D"
+material_name:
+  "Smartfil Wood":
+    empty_container_weight: 230
+    nominal_netto_full_weight: 1000
+    actual_netto_full_weight: 1000
+    material_type: PLA
+    density: 1.58
+    min_bed_temperature: 0
+    max_bed_temperature: 60
+    min_print_temperature: 200
+    max_print_temperature: 220
+    colors:
+      Acacia:
+        primary_color: "#AD9672"
+        tags:
+          - abrasive
+          - contains_wood
+      Teka:
+        primary_color: "#B06B4D"
+        tags:
+          - abrasive
+          - contains_wood
+      Sapelly:
+        primary_color: "#924D4E"
+        tags:
+          - abrasive
+          - contains_wood
+      Wenge:
+        primary_color: "#373737"
+        tags:
+          - abrasive
+          - contains_wood
+      Maple:
+        primary_color: "#edece9"
+        tags:
+          - abrasive
+          - contains_wood
+      Willow:
+        primary_color: "#eaecea"
+        tags:
+          - abrasive
+          - contains_wood
+      Ash:
+        primary_color: "#d3cab9"
+        tags:
+          - abrasive
+          - contains_wood
