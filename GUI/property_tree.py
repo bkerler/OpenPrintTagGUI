@@ -1,3 +1,6 @@
+# (c) B.Kerler 2025
+# GPLv3 License
+
 import sys
 import json
 from PySide6.QtWidgets import (
@@ -37,14 +40,8 @@ class PropertyFilterWidget(QWidget):
         self.layout.addWidget(self.tree)
 
 
-    def load_json(self, json_str):
-        # Parse JSON
-        try:
-            self.data = json.loads(json_str)
-        except json.JSONDecodeError as e:
-            print("JSON Error:", e)
-            self.data = {}
-
+    def load_tags(self, tags):
+        self.data = tags
         # Model & state tracking
         self.model = QStandardItemModel()
         self.cat_states = {}  # {category_name: 'all' | 'checked' | 'collapsed'}

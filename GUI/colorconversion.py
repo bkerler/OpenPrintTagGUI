@@ -1,3 +1,6 @@
+# (c) B.Kerler 2025
+# GPLv3 License
+
 from typing import Tuple, Optional, Dict
 import re
 
