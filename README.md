@@ -24,7 +24,7 @@ See specs [here](https://specs.openprinttag.org)
  source .venv/bin/activate
  ```
 
-### Usage
+## Usage
  ```shell
  python openprinttag_gui.py
  ```
