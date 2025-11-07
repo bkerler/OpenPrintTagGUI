@@ -3,6 +3,8 @@ import json
 import os
 import sys
 from collections import deque
+
+import yaml
 from PySide6.QtCore import Qt, QLocale, QDate, QDateTime
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
@@ -231,6 +233,19 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if open(filename, "wb").write(record.data.tobytes()):
                 self.show_message_box(title="Info", message=f"Successfully wrote {filename}")
 
+    def check_tag_implies(self, tag):
+        dq = deque()
+        dq.append(tag)
+        while dq:
+            tag = dq.popleft()
+            if tag in self.tags:
+                if "implies" in self.tags[tag]:
+                    for subtag in self.tags[tag]["implies"]:
+                        subprop = self.matpropwidget.get_name(subtag)
+                        if subprop is not None:
+                            self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
+                        dq.append(subprop)
+
     def load_file(self, filename):
         self.matpropwidget.uncheck()
         self.matpropwidget.filter_check.setChecked(False)
@@ -349,16 +364,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     prop = self.matpropwidget.get_name(tag)
                     if prop is not None:
                         self.matpropwidget.set_property_checked(property_name=prop, checked=True)
-                        dq = deque()
-                        dq.append(tag)
-                        while dq:
-                            tag = dq.popleft()
-                            if tag in self.matpropwidget.implication_data:
-                                for subtag in self.matpropwidget.implication_data[tag]:
-                                    subprop = self.matpropwidget.get_name(subtag)
-                                    if subprop is not None:
-                                        self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
-                                    dq.append(subprop)
+                        self.check_tag_implies(tag)
         self.matpropwidget.filter_check.setChecked(True)
 
     def on_load_file(self):
@@ -489,16 +495,70 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 """)
         self.brandnamebox.setCurrentIndex(0)
 
+    def read_openprinttag_material_class(self) -> dict:
+        materialclasses = {}
+        mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_class_enum.yaml")
+        if not os.path.exists(mc_filename):
+            self.show_message_box(title="Error", message=f"Couldn't find material class database at {mc_filename}",
+                                  icon=QMessageBox.Icon.Critical)
+        mc = yaml.safe_load(open(mc_filename).read())
+        for item in mc:
+            materialclasses[item["name"]] = item["description"]
+        return materialclasses
+
+    def read_openprinttag_tags(self) -> dict:
+        tags = {}
+        mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
+        if not os.path.exists(mc_filename):
+            self.show_message_box(title="Error", message=f"Couldn't find tags database at {mc_filename}",
+                                  icon=QMessageBox.Icon.Critical)
+        mc = yaml.safe_load(open(mc_filename).read())
+        for item in mc:
+            if "depreciated" in item:
+                if item["depreciated"]:
+                    continue
+            if "name" in item:
+                name = item["name"]
+                tags[name] = {}
+                for subitem in ["description", "category", "implies", "short_description"]:
+                    if subitem in item:
+                        tags[name][subitem] = item[subitem]
+        return tags
+
+    def read_openprinttag_material_types(self) -> dict:
+        materialtypes = {}
+        default_filamenttypes = json.loads(open(os.path.join(script_path, "data", "material_temps.json")).read())
+        mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_type_enum.yaml")
+        if not os.path.exists(mc_filename):
+            self.show_message_box(title="Error", message=f"Couldn't find material type database at {mc_filename}",
+                                  icon=QMessageBox.Icon.Critical)
+        mc = yaml.safe_load(open(mc_filename).read())
+        for item in mc:
+            abbr = item["abbreviation"]
+            materialtypes[abbr] = dict(name=item["name"], desc=item["description"])
+            if abbr in default_filamenttypes:
+                if "bed_max_temp" in default_filamenttypes[abbr]:
+                    materialtypes[abbr]["bed_max_temp"] = default_filamenttypes[abbr]["bed_max_temp"]
+                if "bed_min_temp" in default_filamenttypes[abbr]:
+                    materialtypes[abbr]["bed_min_temp"] = default_filamenttypes[abbr]["bed_min_temp"]
+                if "preheat_temp" in default_filamenttypes[abbr]:
+                    materialtypes[abbr]["preheat_temp"] = default_filamenttypes[abbr]["preheat_temp"]
+                if "max_temp" in default_filamenttypes[abbr]:
+                    materialtypes[abbr]["max_temp"] = default_filamenttypes[abbr]["max_temp"]
+                if "min_temp" in default_filamenttypes[abbr]:
+                    materialtypes[abbr]["min_temp"] = default_filamenttypes[abbr]["min_temp"]
+        return materialtypes
+
     def add_default_filaments(self):
-        self.default_filamenttypes = json.loads(open(os.path.join(script_path, "data", "material_types.json")).read())
-        materialclasses = json.loads(open(os.path.join(script_path, "data", "material_classes.json")).read())
+        self.default_filamenttypes = self.read_openprinttag_material_types()
+        materialclasses = self.read_openprinttag_material_class()
         self.materialclassbox.clear()
         idx = 0
         for materialclass in materialclasses:
             self.materialclassbox.addItem(materialclass + " - " + materialclasses[materialclass])
             idx += 1
         for filament in self.default_filamenttypes:
-            self.materialtypebox.addItem(filament)
+            self.materialtypebox.addItem(filament + " - " + self.default_filamenttypes[filament]["name"])
         self.materialtypebox.setStyleSheet("""
                     combobox-popup: 0;
                     QListWidget::item { padding: 4px; }
@@ -538,13 +598,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.secondarycolor0edit_4.setText("")
 
     def add_material_properties(self):
+        self.tags = self.read_openprinttag_tags()
         matprop_filename = os.path.join(script_path, "data", "material_properties.json")
         if os.path.exists(matprop_filename):
             matprop = open(matprop_filename).read()
-            matprop_imp_filename = os.path.join(script_path, "data", "material_properties_implication.json")
-            if os.path.exists(matprop_imp_filename):
-                matprop_implication = open(matprop_imp_filename).read()
-                self.matpropwidget.load_json(matprop, matprop_implication)
+            self.matpropwidget.load_json(matprop)
 
     def on_manufacturer_changed(self):
         self.includeurlcheckbox.setChecked(False)
@@ -579,16 +637,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         for tag in properties:
             self.matpropwidget.set_property_checked(property_name=self.matpropwidget.get_name(tag), checked=True)
             if tag is not None:
-                dq = deque()
-                dq.append(tag)
-                while dq:
-                    tag = dq.popleft()
-                    if tag in self.matpropwidget.implication_data:
-                        for subtag in self.matpropwidget.implication_data[tag]:
-                            subprop = self.matpropwidget.get_name(subtag)
-                            if subprop is not None:
-                                self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
-                            dq.append(subprop)
+                self.check_tag_implies(tag)
         self.matpropwidget.filter_check.setChecked(True)
         self.matpropwidget.repaint()
 

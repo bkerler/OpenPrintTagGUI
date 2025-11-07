@@ -37,11 +37,10 @@ class PropertyFilterWidget(QWidget):
         self.layout.addWidget(self.tree)
 
 
-    def load_json(self, json_str, json_implication_str):
+    def load_json(self, json_str):
         # Parse JSON
         try:
             self.data = json.loads(json_str)
-            self.implication_data = json.loads(json_implication_str)
         except json.JSONDecodeError as e:
             print("JSON Error:", e)
             self.data = {}
