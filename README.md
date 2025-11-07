@@ -3,13 +3,14 @@ GUI for the open print tag standard [openprinttag.org](https://openprinttag.org)
 See specs [here](https://specs.openprinttag.org)
 
 ### Requirements
-- python >= 3.8
+- python >= 3.10
 
 ### Installation
 ```bash
-git clone https://github.com/bkerler/OpenPrintTagGUI
-git submodule init
-git submodule update
+git clone https://github.com/bkerler/OpenPrintTagGUI --recursive
+cd OpenPrintTagGUI
+python -m venv .venv
+source .venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
@@ -42,14 +43,14 @@ python openprinttag_gui.py yourtag.bin
         250,
         270
       ],
-      "bed": [`
+      "bed": [
         105,
         115
       ],
       "properties": [
         "Abrasive",
         "Contains Carbon Fiber"
-      ]
+      ],
       "colors": {
         "Jet Black": ["#24292A",0.4,"https://www.prusa3d.com/product/prusament-asa-jet-black-800g-nfc/"],
         "Lipstick Red": ["#D02F37",0.4,"https://www.prusa3d.com/product/prusament-asa-lipstick-red-800g-nfc/"],
@@ -60,7 +61,8 @@ python openprinttag_gui.py yourtag.bin
         "Signal White":["#E3DFD9",2.4,"https://www.prusa3d.com/product/prusament-asa-signal-white-800g-nfc/"],
         "Prusa Pro Green": ["#33d3b6",1.6,"https://www.prusa3d.com/product/prusament-asa-prusa-pro-green-800g-nfc/"]
       }
-    },
+    }
+  }
 }
 ```
 
