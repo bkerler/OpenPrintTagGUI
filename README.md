@@ -88,5 +88,5 @@ using [Icemans Proxmark3 Fork](https://github.com/RfidResearchGroup/proxmark3)
 
 - Write tag
  ```shell
- hf 15 restore f mytag.bin
+ hf 15 restore -f mytag.bin
  ```
