@@ -1,0 +1,149 @@
+[usb] pm3 --> hf 15 info
+[=] Using scan mode
+
+[=] --- Tag Information ---------------------------
+[+] UID....... E0 04 01 08 66 2E D4 CF
+[+] TYPE MATCH NXP (Philips); IC SL2 ICS2602 ( SLIX2 )
+[+] SYSINFO... 00 0F CF D4 2E 66 08 01 04 E0 00 00 4F 03 01 
+[+] DSFID..... 0x00
+[+] AFI....... 0x00
+[+] IC ref.... 0x01
+[+] Tag memory layout (vendor dependent)
+[+]     4 ( or 3 ) bytes/blocks x 80 blocks
+[+]     320 total bytes
+[=] 
+[=] --- NXP Sysinfo
+[=]     Raw............ 00 00 00 00 7F 35 00 00 
+[=] 
+[=]  Password protection configuration
+[=]     Page prot. ptr. 0
+[=]     Page L read.... no password
+[=]     Page L write... no password
+[=]     Page H read.... no password
+[=]     Page H write... no password
+[=] 
+[=]  Lock bits
+[=]     AFI............ unlocked
+[=]     EAS............ unlocked
+[=]     DSFID.......... unlocked
+[=]     Password protection configuration... unlocked
+[=] 
+[=]  Features
+[=]     User memory password protection supported
+[=]     Counter feature supported
+[=]     EAS ID supported by EAS ALARM command
+[=]     EAS password protection supported
+[=]     AFI password protection supported
+[=]     Extended mode supported by INVENTORY READ command
+[=]     EAS selection supported by extended mode in INVENTORY READ command
+[=]     READ SIGNATURE command supported
+[=]     Password protection for READ SIGNATURE command not supported
+[=]     STAY QUIET PERSISTENT command supported
+[=]     ENABLE PRIVACY command supported
+[=]     DESTROY command supported
+[=]     Additional 32 bits feature flags are not transmitted
+
+[=]  IC signature public key name: NXP ICODE DNA, ICODE SLIX2
+[=] IC signature public key value: 048878A2A2D3EEC336B4F261A082BD71
+[=]                              : F9BE11C4E2E896648B32EFA59CEA6E59
+[=]                              : F0
+[=]     Elliptic curve parameters: secp128r1
+[=]              TAG IC Signature: FC704F752C8DECF9BA95E1A031B3A02C
+[=]                              : 8B84F6753522E870D1545139265C4714
+[+]        Signature verification: successful
+[=]                   Params used: UID and signature, plain
+
+[usb] pm3 --> hf 15 dump
+[=] Using scan mode
+[+] Reading memory
+ 🕗 blk  80
+[=] --- Tag Memory -------------------
+
+[=] -----+-------------+---+------
+[=]  blk | data        |lck| ascii
+[=] -----+-------------+---+------
+[=]    0 | E1 40 27 01 | 0 | .@'.
+[=]    1 | 03 FF 01 2F | 0 | .../
+[=]    2 | 91 01 17 55 | 0 | ...U
+[=]    3 | 04 33 64 74 | 0 | .3dt
+[=]    4 | 61 67 2E 6F | 0 | ag.o
+[=]    5 | 72 67 2F 73 | 0 | rg/s
+[=]    6 | 2F 66 61 66 | 0 | /faf
+[=]    7 | 2F 66 61 66 | 0 | /faf
+[=]    8 | 39 30 61 30 | 0 | 90a0
+[=]    9 | 31 62 39 52 | 0 | 1b9R
+[=]   10 | 1C F5 61 70 | 0 | ..ap
+[=]   11 | 70 6C 69 63 | 0 | plic
+[=]   12 | 61 74 69 6F | 0 | atio
+[=]   13 | 6E 2F 76 6E | 0 | n/vn
+[=]   14 | 64 2E 6F 70 | 0 | d.op
+[=]   15 | 65 6E 70 72 | 0 | enpr
+[=]   16 | 69 6E 74 74 | 0 | intt
+[=]   17 | 61 67 A1 02 | 0 | ag..
+[=]   18 | 18 D2 BF 04 | 0 | ....
+[=]   19 | 1B 00 00 07 | 0 | ....
+[=]   20 | D0 FC AB 45 | 0 | ...E
+[=]   21 | F9 05 6A 66 | 0 | ..jf
+[=]   22 | 61 66 39 30 | 0 | af90
+[=]   23 | 61 30 31 62 | 0 | a01b
+[=]   24 | 39 08 00 09 | 0 | 9...
+[=]   25 | 00 0A 76 50 | 0 | ..vP
+[=]   26 | 4C 41 20 50 | 0 | LA P
+[=]   27 | 72 75 73 61 | 0 | rusa
+[=]   28 | 20 47 61 6C | 0 |  Gal
+[=]   29 | 61 78 79 20 | 0 | axy 
+[=]   30 | 42 6C 61 63 | 0 | Blac
+[=]   31 | 6B 0B 69 50 | 0 | k.iP
+[=]   32 | 72 75 73 61 | 0 | rusa
+[=]   33 | 6D 65 6E 74 | 0 | ment
+[=]   34 | 0E 1A 68 F1 | 0 | ..h.
+[=]   35 | 7D DC 10 19 | 0 | }...
+[=]   36 | 03 E8 11 19 | 0 | ....
+[=]   37 | 04 2A 12 19 | 0 | .*..
+[=]   38 | 01 15 13 43 | 0 | ...C
+[=]   39 | 3D 3E 3D 18 | 0 | =>=.
+[=]   40 | 1C 9F 17 18 | 0 | ....
+[=]   41 | 3E FF 18 1D | 0 | >...
+[=]   42 | F9 3C F6 18 | 0 | .<..
+[=]   43 | 22 18 CD 18 | 0 | "...
+[=]   44 | 23 18 E1 18 | 0 | #...
+[=]   45 | 24 18 AA 18 | 0 | $...
+[=]   46 | 25 18 28 18 | 0 | %.(.
+[=]   47 | 26 18 3C 18 | 0 | &.<.
+[=]   48 | 27 12 18 28 | 0 | '..(
+[=]   49 | 18 28 18 29 | 0 | .(.)
+[=]   50 | 14 18 2A 18 | 0 | ..*.
+[=]   51 | 14 18 2A 18 | 0 | ..*.
+[=]   52 | 43 18 2B 18 | 0 | C.+.
+[=]   53 | C8 18 2C 18 | 0 | ..,.
+[=]   54 | 65 18 2D 18 | 0 | e.-.
+[=]   55 | 33 18 35 1A | 0 | 3.5.
+[=]   56 | 00 05 2A AC | 0 | ..*.
+[=]   57 | 18 36 1A 00 | 0 | .6..
+[=]   58 | 05 82 D1 FF | 0 | ....
+[=]   59 | 00 00 00 00 | 0 | ....
+[=]   60 | 00 00 00 00 | 0 | ....
+[=]   61 | 00 00 00 00 | 0 | ....
+[=]   62 | 00 00 00 00 | 0 | ....
+[=]   63 | 00 00 00 00 | 0 | ....
+[=]   64 | 00 00 00 00 | 0 | ....
+[=]   65 | 00 00 00 00 | 0 | ....
+[=]   66 | 00 00 00 00 | 0 | ....
+[=]   67 | 00 00 00 00 | 0 | ....
+[=]   68 | 00 00 00 00 | 0 | ....
+[=]   69 | 00 00 00 00 | 0 | ....
+[=]   70 | 00 00 00 00 | 0 | ....
+[=]   71 | 00 00 00 00 | 0 | ....
+[=]   72 | A0 00 00 00 | 0 | ....
+[=]   73 | 00 00 00 00 | 0 | ....
+[=]   74 | 00 00 00 00 | 0 | ....
+[=]   75 | 00 00 00 00 | 0 | ....
+[=]   76 | 00 00 00 00 | 0 | ....
+[=]   77 | 00 00 00 00 | 0 | ....
+[=]   78 | 00 00 00 00 | 0 | ....
+[=]   79 | 00 00 00 00 | 0 | ....
+[=] -----+-------------+---+------
+
+[=] Using UID as filename
+[+] Saved 2235 bytes to binary file `/home/bjk/hf-15-E0040108662ED4CF-dump.bin`
+[+] Saved to json file /home/bjk/hf-15-E0040108662ED4CF-dump.json
