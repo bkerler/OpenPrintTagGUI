@@ -238,4 +238,9 @@ SBS:
   preheat_temp: 170
   bed_min_temp: 60
   bed_max_temp: 70
-
+OBC:
+  min_temp: 160
+  max_temp: 200
+  preheat_temp: 100
+  bed_min_temp: 60
+  bed_max_temp: 100

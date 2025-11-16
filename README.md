@@ -1,4 +1,4 @@
-# OpenPrintTagGUI
+# OpenPrintTagGUI (c) B.Kerler 2025
 GUI for the open print tag standard [openprinttag.org](https://openprinttag.org)
 See specs [here](https://specs.openprinttag.org)
 
@@ -34,7 +34,6 @@ python openprinttag_gui.py yourtag.bin
 ```
 
 ## ToDo
-- TD1S integration
 - Read/Write directly to tag using NFC Writer
 - Add more default filament data and colors
 

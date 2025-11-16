@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
+# (c) B.Kerler 2025
+# GPLv3 License
+
 import json
 import os
 import sys
 from collections import deque
 
 import yaml
-from PySide6.QtCore import Qt, QLocale, QDate, QDateTime
+from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
@@ -20,7 +23,26 @@ from GUI.gui import Ui_OpenPrintTagGui
 from Library.OpenPrintTag.utils.record import Record
 from Library.OpenPrintTag.utils.common import default_config_file
 from Library.OpenPrintTag.utils.nfc_initialize import nfc_initialize, Args
+from Library.td1s import collect_data
 
+# Worker signals
+class WorkerSignals(QObject):
+    finished = Signal(object, object)  # td, color
+    error = Signal(Exception)
+
+# Worker thread
+class DataCollectorThread(QThread):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.signals = WorkerSignals()
+
+    def run(self):
+        try:
+            td, color = collect_data()
+            # Emit result to main thread
+            self.signals.finished.emit(td, color)
+        except Exception as e:
+            self.signals.error.emit(e)
 
 class DateValidator(QValidator):
     """Validator that only accepts dates in the system locale format."""
@@ -80,6 +102,7 @@ class DatePickerPopup(QDialog):
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.td1sthread = None
         self.aux_region_size = None
         self.aux_region_offset = None
         self.main_region_size = None
@@ -111,13 +134,45 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         # toDo implement
         self.readtagbtn.setDisabled(True)
         self.writetagbtn.setDisabled(True)
-        self.td1sbutton.setDisabled(True)
+        self.td1sbutton.clicked.connect(self.readtd1s)
         # end ToDo
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
         self.colornamebox.setCurrentIndex(0)
+
+    def on_td1s_data_ready(self, td, color):
+        if td is None and color is None:
+            self.show_message_box("Error", "Couldn't detect td1s", QMessageBox.Icon.Critical)
+            return
+        elif td=="" and color=="":
+            self.statusbar.showMessage(f"TD1S TD: Please try again, no color detected. Insert filament after button click", 0)
+        else:
+            self.statusbar.showMessage(f"TD1S TD: {td}\nColor: #{color}",2000)
+            self.update_color_label("#"+color,self.colorlabel)
+            self.primarycoloredit.setText("#"+color)
+            self.transmissiondistanceedit.setText(td)
+
+    def on_td1s_error(self, exc):
+        self.show_message_box("Error",f"TD1S error : {str(exc)}",QMessageBox.Icon.Critical)
+
+    def on_td1s_thread_done(self):
+        self.td1sbutton.setEnabled(True)
+
+    def readtd1s(self):
+        if self.td1sthread and self.td1sthread.isRunning():
+            return  # Already running
+
+        self.statusbar.showMessage("Collecting td1s data... please insert filament",0)
+        self.td1sbutton.setEnabled(False)
+
+        # Create and start thread
+        self.td1sthread = DataCollectorThread(self)
+        self.td1sthread.signals.finished.connect(self.on_td1s_data_ready)
+        self.td1sthread.signals.error.connect(self.on_td1s_error)
+        self.td1sthread.finished.connect(self.on_td1s_thread_done)
+        self.td1sthread.start()
 
     def locale_to_timestamp(self, date_str):
         dt = QLocale().toDate(date_str, QLocale.ShortFormat)
@@ -527,22 +582,33 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def read_openprinttag_tags(self) -> dict:
         tags = {}
+        mcc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tag_categories_enum.yaml")
+        if not os.path.exists(mcc_filename):
+            self.show_message_box(title="Error", message=f"Couldn't find categories database at {mcc_filename}",
+                                  icon=QMessageBox.Icon.Critical)
+        mcc = yaml.safe_load(open(mcc_filename).read())
+
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title="Error", message=f"Couldn't find tags database at {mc_filename}",
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename).read())
-        for item in mc:
-            if "depreciated" in item:
-                if item["depreciated"]:
-                    continue
-            if "name" in item:
-                name = item["name"]
-                tags[name] = {}
-                for subitem in ["description", "category", "implies", "short_description"]:
-                    if subitem in item:
-                        tags[name][subitem] = item[subitem]
+        for citem in mcc:
+            if "display_name" in citem and "name" in citem:
+                category = citem["display_name"]
+                tag_category = citem["name"]
+                tags[category] = {}
+                for item in mc:
+                    if "depreciated" in item:
+                        if item["depreciated"]:
+                            continue
+                    if "category" in item:
+                        if tag_category==item["category"]:
+                            if "display_name" in item:
+                                displayname = item["display_name"]
+                                tags[category][displayname] = item
         return tags
+
 
     def read_openprinttag_material_types(self) -> dict:
         materialtypes = {}
@@ -622,10 +688,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def add_default_material_properties(self):
         self.tags = self.read_openprinttag_tags()
-        matprop_filename = os.path.join(script_path, "data", "material_properties.json")
-        if os.path.exists(matprop_filename):
-            matprop = open(matprop_filename).read()
-            self.matpropwidget.load_json(matprop)
+        if self.tags is not None:
+            self.matpropwidget.load_tags(self.tags)
 
     def setup_color(self, brandname:str, materialname:str, colorname:str):
         if brandname in self.filaments and materialname in self.filaments[brandname]:
@@ -712,6 +776,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     for colorname in cm["colors"]:
                         self.colornamebox.addItem(f"{colorname}")
                     self.colornamebox.setCurrentIndex(0)
+
     def on_manufacturer_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()

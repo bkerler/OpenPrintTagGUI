@@ -1,3 +1,6 @@
+# (c) B.Kerler 2025
+# GPLv3 License
+
 from PySide6.QtWidgets import QComboBox
 
 
