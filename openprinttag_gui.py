@@ -582,7 +582,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def read_openprinttag_tags(self) -> dict:
         tags = {}
-        mcc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_categories_enum.yaml")
+        mcc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tag_categories_enum.yaml")
         if not os.path.exists(mcc_filename):
             self.show_message_box(title="Error", message=f"Couldn't find categories database at {mcc_filename}",
                                   icon=QMessageBox.Icon.Critical)
@@ -776,6 +776,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     for colorname in cm["colors"]:
                         self.colornamebox.addItem(f"{colorname}")
                     self.colornamebox.setCurrentIndex(0)
+
     def on_manufacturer_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()

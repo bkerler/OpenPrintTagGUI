@@ -229,9 +229,9 @@ class PropertyFilterWidget(QWidget):
         return None
 
     def get_name(self, tag:str):
-        for category in self.data:
-            fields = self.data[category]
+        for categoryname in self.data:
+            fields = self.data[categoryname]
             for field in fields:
-                if tag == fields[field]:
+                if "name" in fields[field] and tag == fields[field]["name"]:
                     return field
         return None
