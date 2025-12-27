@@ -6,11 +6,14 @@ import os
 import sys
 from collections import deque
 
+import hid
 import yaml
 from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
+
+from Library.s9_nfc.s9_hf15 import S9_HF15
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.dirname(script_path))
@@ -62,6 +65,13 @@ class DeviceDetector(QObject):
                 found_port = port.device
                 break
 
+        for device_info in hid.enumerate(0, 0):
+            if "vendor_id" in device_info and "product_id" in device_info:
+                if self.target_vid == device_info["vendor_id"] and self.target_pid == device_info["product_id"]:
+                    if "path" in device_info:
+                        found_port = device_info["path"].decode('utf-8')
+                    break
+
         if found_port and found_port != self.current_port:
             # Device just appeared
             self.current_port = found_port
@@ -83,18 +93,20 @@ class TD1S_WorkerSignals(QObject):
     error = Signal(Exception)
 
 
-class PM3_WorkerSignals(QObject):
+class NFC_WorkerSignals(QObject):
     progress = Signal(int)  # Progress percentage (0-100)
     status = Signal(str)  # Status message updates
     finished = Signal(object)  # Emits the tag object on success (or None)
     error = Signal(str)  # Emits error message on failure
 
 
-class PM3_WriteTagWorker(QRunnable):
-    def __init__(self, parent):
+class NFC_WriteTagWorker(QRunnable):
+    def __init__(self, parent, reader: int, port: str = None):
         super().__init__()
-        self.signals = PM3_WorkerSignals()
+        self.signals = NFC_WorkerSignals()
         self.parent = parent
+        self.reader = reader
+        self.port = port
 
     @Slot()
     def run(self):
@@ -105,16 +117,26 @@ class PM3_WriteTagWorker(QRunnable):
             self.signals.error.emit(f"Failed to generate tag data: {str(e)}")
             return
 
-        self.signals.status.emit("Connecting to Proxmark3...")
         try:
-            pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+            if self.reader == 1:
+                self.signals.status.emit("Connecting to Proxmark3...")
+                dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
+            elif self.reader == 2:
+                self.signals.status.emit("Connecting to S9...")
+                dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
+                if dev.getUID() == b"":
+                    self.signals.error.emit(f"Couldn't detect nfc tag.")
+                    return
+            else:
+                self.signals.error.emit(f"Unknown nfc reader: {str(self.reader)}")
+                return
         except Exception as e:
-            self.signals.error.emit(f"Failed to connect to PM3: {str(e)}")
+            self.signals.error.emit(f"Failed to connect to reader: {str(e)}")
             return
 
-        self.signals.status.emit("Writing to NFC tag via PM3...")
+        self.signals.status.emit("Writing to NFC tag ...")
         try:
-            if pm3.restore(data_or_filename=tagdata, fast=True, progress=self.signals.progress.emit):
+            if dev.restore(data_or_filename=tagdata, fast=True, progress=self.signals.progress.emit):
                 self.signals.status.emit("Succeeded writing nfc tag")
             else:
                 self.signals.error.emit("Error on writing nfc tag")
@@ -124,24 +146,36 @@ class PM3_WriteTagWorker(QRunnable):
         pass
 
 
-class PM3_ReadTagWorker(QRunnable):
-    def __init__(self):
+class NFC_ReadTagWorker(QRunnable):
+    def __init__(self, reader: int, port: str):
         super().__init__()
-        self.signals = PM3_WorkerSignals()
+        self.reader = reader
+        self.signals = NFC_WorkerSignals()
+        self.port = port
 
     @Slot()
     def run(self):
-        self.signals.status.emit("Connecting to Proxmark3...")
         try:
-            pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+            if self.reader == 1:
+                self.signals.status.emit("Connecting to Proxmark3...")
+                dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
+            elif self.reader == 2:
+                self.signals.status.emit("Connecting to S9...")
+                dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
+                if dev.getUID() == b"":
+                    self.signals.error.emit(f"Couldn't detect nfc tag.")
+                    return
+            else:
+                self.signals.error.emit(f"Unknown nfc reader: {str(self.reader)}")
+                return
         except Exception as e:
-            self.signals.error.emit(f"Failed to connect to PM3: {str(e)}")
+            self.signals.error.emit(f"Failed to connect to reader: {str(e)}")
             return
 
-        self.signals.status.emit("Reading NFC tag via PM3...")
+        self.signals.status.emit("Reading NFC tag ...")
         try:
             # Assuming the progress callback expects a percentage (0-100)
-            tag = pm3.dump(filename=None, progress=self.signals.progress.emit)
+            tag = dev.dump(filename=None, progress=self.signals.progress.emit)
         except Exception as e:
             self.signals.error.emit(f"Error reading NFC tag: {str(e)}")
             return
@@ -229,6 +263,8 @@ class DatePickerPopup(QDialog):
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.port = None
+        self.reader = None
         self.threadpool = QThreadPool()
         self.td1sthread = None
         self.aux_region_size = None
@@ -272,6 +308,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.pm3_detector.device_detected.connect(self.on_pm3_detected)
         self.pm3_detector.device_removed.connect(self.on_pm3_removed)
 
+        # S9
+        self.s9_detector = DeviceDetector(target_vid=0x0471, target_pid=0xa112, poll_interval_ms=1000)
+        self.s9_detector.device_detected.connect(self.on_s9_detected)
+        self.s9_detector.device_removed.connect(self.on_s9_removed)
+
         # TD1S
         self.td1s_detector = DeviceDetector(target_vid=0xe4b2, target_pid=0x0045, poll_interval_ms=1000)
         self.td1s_detector.device_detected.connect(self.on_td1s_detected)
@@ -291,20 +332,38 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.msg("TD1S removed.")
         self.td1sbutton.setDisabled(True)
 
-    def on_pm3_detected(self):
+    def on_pm3_detected(self, port: str):
         self.msg("Proxmark3 detected.")
+        self.reader = 1
+        self.port = port
         self.readtagbtn.setDisabled(False)
         self.writetagbtn.setDisabled(False)
 
     def on_pm3_removed(self):
         self.msg("Proxmark3 removed.")
+        self.reader = 0
+        self.port = None
+        self.readtagbtn.setDisabled(True)
+        self.writetagbtn.setDisabled(True)
+
+    def on_s9_detected(self, port: str):
+        self.msg("S9 detected.")
+        self.reader = 2
+        self.port = port
+        self.readtagbtn.setDisabled(False)
+        self.writetagbtn.setDisabled(False)
+
+    def on_s9_removed(self):
+        self.msg("S9 removed.")
+        self.reader = 0
+        self.port = None
         self.readtagbtn.setDisabled(True)
         self.writetagbtn.setDisabled(True)
 
     def msg(self, text, value: int = 0):
         self.statusbar.showMessage(self.tr(text), value)
 
-    def set_progress(self, value:int):
+    def set_progress(self, value: int):
         self.progressBar.setValue(value)
         self.progressBar.update()
 
@@ -312,7 +371,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.progressBar.setValue(0)
         self.msg("Starting...")
 
-        worker = PM3_ReadTagWorker()
+        worker = NFC_ReadTagWorker(reader=self.reader, port=self.port)
 
         # Connect signals to UI updates
         worker.signals.progress.connect(self.set_progress)
@@ -337,7 +396,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.set_progress(0)
         self.msg("Generating tag data...")
 
-        worker = PM3_WriteTagWorker(parent=self)
+        worker = NFC_WriteTagWorker(parent=self, reader=self.reader, port=self.port)
 
         # Connect signals to UI updates
         worker.signals.progress.connect(self.set_progress)

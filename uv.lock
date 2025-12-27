@@ -76,6 +76,15 @@ wheels = [
 ]
 
 [[package]]
+name = "hid"
+version = "1.0.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/42/9cd3eab530ffae5e0ff880c575fd18cfdfe292b71f1e9872c392329f35fd/hid-1.0.8.tar.gz", hash = "sha256:5ca129a7b9434ace5e3e429c1092a16792feffaf067a46b666e9c586872cdcfe", size = 4967, upload-time = "2025-06-28T16:20:27.576Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/52/24bfaee85a5e25f2d1a389944a3576d408ab3ca935176e892cbef47b92b6/hid-1.0.8-py3-none-any.whl", hash = "sha256:9b6fac92098322ae5d8d839c2bb30620b7533284bcf5f3e6aedcc0483c388046", size = 4949, upload-time = "2025-06-28T16:20:26.745Z" },
+]
+
+[[package]]
 name = "jinja2"
 version = "3.1.6"
 source = { registry = "https://pypi.org/simple" }
@@ -277,6 +286,7 @@ source = { editable = "." }
 dependencies = [
     { name = "cbor2" },
     { name = "crcmod" },
+    { name = "hid" },
     { name = "jinja2" },
     { name = "jsonschema" },
     { name = "ndeflib" },
@@ -292,6 +302,7 @@ dependencies = [
 requires-dist = [
     { name = "cbor2", specifier = "~=5.7.1" },
     { name = "crcmod" },
+    { name = "hid" },
     { name = "jinja2", specifier = "~=3.1.5" },
     { name = "jsonschema", specifier = "~=4.25.1" },
     { name = "ndeflib", specifier = "~=0.3.3" },

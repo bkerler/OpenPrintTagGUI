@@ -36,10 +36,10 @@ python openprinttag_gui.py yourtag.bin
 ## Currently supported
 - Read/write binary blobs that can be written using ProxMark3 cli
 - Read/Write directly to tag using proxmark3 NFC Writer
+- Read/Write directly to tag using YiQing/Fongwah S9
 
 ## ToDo
 - Add more default filament data and colors
-- Read/Write directly to tag using Fongwah S9-CU-00-00
 - Read/Write directly to tag using ACR1552U readers
 
 ## Add custom filament to default settings
