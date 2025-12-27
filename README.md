@@ -33,12 +33,14 @@ or opening your tag binary directly
 python openprinttag_gui.py yourtag.bin
 ```
 
-## ToDo
-- Read/Write directly to tag using NFC Writer
-- Add more default filament data and colors
-
 ## Currently supported
 - Read/write binary blobs that can be written using ProxMark3 cli
+- Read/Write directly to tag using proxmark3 NFC Writer
+
+## ToDo
+- Add more default filament data and colors
+- Read/Write directly to tag using Fongwah S9-CU-00-00
+- Read/Write directly to tag using ACR1552U readers
 
 ## Add custom filament to default settings
 - Custom filaments are stored in "data/filaments" in its own file in yaml-Format:
@@ -73,7 +75,7 @@ material_name:
           - contains_wood
 ```
 
-## Read/Write using proxmark3 (ICODE-SLIX SLIX2 ISO15693) or NXP TagInfo App
+## Manually reading/writing using proxmark3 (ICODE-SLIX SLIX2 ISO15693) or NXP TagInfo App
 using [Icemans Proxmark3 Fork](https://github.com/RfidResearchGroup/proxmark3)
 - Identify tag
  ```shell
