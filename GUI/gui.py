@@ -18,9 +18,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-    QMainWindow, QMenu, QMenuBar, QPushButton,
-    QSizePolicy, QSpacerItem, QSpinBox, QStatusBar,
-    QTabWidget, QTextEdit, QVBoxLayout, QWidget)
+    QMainWindow, QMenu, QMenuBar, QProgressBar,
+    QPushButton, QSizePolicy, QSpacerItem, QSpinBox,
+    QStatusBar, QTabWidget, QTextEdit, QVBoxLayout,
+    QWidget)
 
 from GUI.customcombobox import ClearComboBox
 from GUI.property_tree import PropertyFilterWidget
@@ -708,6 +709,12 @@ class Ui_OpenPrintTagGui(object):
         self.tabWidget.addTab(self.nfctab, "")
 
         self.gridLayout_8.addWidget(self.tabWidget, 0, 0, 1, 1)
+
+        self.progressBar = QProgressBar(self.centralwidget)
+        self.progressBar.setObjectName(u"progressBar")
+        self.progressBar.setValue(0)
+
+        self.gridLayout_8.addWidget(self.progressBar, 1, 0, 1, 1)
 
         OpenPrintTagGui.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(OpenPrintTagGui)

@@ -13,15 +13,19 @@ license = {file = "LICENSE"}
 version = "1.0.0"
 requires-python = ">= 3.8"
 dependencies = [
-    "pyside6",
-    "pyserial",
-    "crcmod",
-    "ndeflib~=0.3.3",
-    "pyyaml~=6.0",
-    "cbor2~=5.6.4",
-    "jinja2~=3.1.5",
-    "numpy~=2.2.3",
-    "simple_parsing~=0.1.7"
+"pyside6",
+"pyserial",
+"crcmod",
+"ndeflib~=0.3.3",
+"pyyaml~=6.0",
+"ndeflib~=0.3.3",
+"cbor2~=5.7.1",
+"jinja2~=3.1.5",
+"numpy~=2.2.3",
+"simple_parsing~=0.1.7",
+"referencing~=0.37.0",
+"jsonschema~=4.25.1"
+
 ]
 classifiers = [
   "Development Status :: 4 - Beta",

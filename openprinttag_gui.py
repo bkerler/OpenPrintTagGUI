@@ -7,7 +7,7 @@ import sys
 from collections import deque
 
 import yaml
-from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot
+from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
@@ -76,31 +76,95 @@ class DeviceDetector(QObject):
         self.timer.stop()
 
 
-class LabelWorker(QObject):
-    """Background worker that emits text updates."""
-    label_update = Signal(str, int)
+# Worker signals
+class TD1S_WorkerSignals(QObject):
+    finished = Signal(object, object)  # td, color
+    progress = Signal(int)
+    error = Signal(Exception)
+
+
+class PM3_WorkerSignals(QObject):
+    progress = Signal(int)  # Progress percentage (0-100)
+    status = Signal(str)  # Status message updates
+    finished = Signal(object)  # Emits the tag object on success (or None)
+    error = Signal(str)  # Emits error message on failure
+
+
+class PM3_WriteTagWorker(QRunnable):
+    def __init__(self, parent):
+        super().__init__()
+        self.signals = PM3_WorkerSignals()
+        self.parent = parent
 
     @Slot()
-    def emit(self, text, value: int = 0):
-        self.label_update.emit(text, value)
+    def run(self):
+        self.signals.status.emit("Generating tag data...")
+        try:
+            tagdata = self.parent.generate_tag_data()
+        except Exception as e:
+            self.signals.error.emit(f"Failed to generate tag data: {str(e)}")
+            return
+
+        self.signals.status.emit("Connecting to Proxmark3...")
+        try:
+            pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+        except Exception as e:
+            self.signals.error.emit(f"Failed to connect to PM3: {str(e)}")
+            return
+
+        self.signals.status.emit("Writing to NFC tag via PM3...")
+        try:
+            if pm3.restore(data_or_filename=tagdata, fast=True, progress=self.signals.progress.emit):
+                self.signals.status.emit("Succeeded writing nfc tag")
+            else:
+                self.signals.error.emit("Error on writing nfc tag")
+        except Exception as e:
+            self.signals.error.emit(f"Error on reading nfc tag: {str(e)}")
+            return
+        pass
 
 
-# Worker signals
-class WorkerSignals(QObject):
-    finished = Signal(object, object)  # td, color
-    error = Signal(Exception)
+class PM3_ReadTagWorker(QRunnable):
+    def __init__(self):
+        super().__init__()
+        self.signals = PM3_WorkerSignals()
+
+    @Slot()
+    def run(self):
+        self.signals.status.emit("Connecting to Proxmark3...")
+        try:
+            pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+        except Exception as e:
+            self.signals.error.emit(f"Failed to connect to PM3: {str(e)}")
+            return
+
+        self.signals.status.emit("Reading NFC tag via PM3...")
+        try:
+            # Assuming the progress callback expects a percentage (0-100)
+            tag = pm3.dump(filename=None, progress=self.signals.progress.emit)
+        except Exception as e:
+            self.signals.error.emit(f"Error reading NFC tag: {str(e)}")
+            return
+
+        self.signals.status.emit("Parsing tag data...")
+        try:
+            # If load_data is a method on your main window/class, you'll need to pass the data back
+            # and handle parsing in the main thread if it touches UI elements.
+            self.signals.finished.emit(tag)  # tag should have .data attribute
+        except Exception as e:
+            self.signals.error.emit(f"Error parsing NFC tag: {str(e)}")
 
 
 # Worker thread
 class DataCollectorThread(QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.signals = WorkerSignals()
+        self.signals = TD1S_WorkerSignals()
         self.parent = parent
 
     def run(self):
         try:
-            td, color = collect_data(logger=self.parent.labelworker.emit)
+            td, color = collect_data(logger=self.signals.progress.emit)
             # Emit result to main thread
             self.signals.finished.emit(td, color)
         except Exception as e:
@@ -165,6 +229,7 @@ class DatePickerPopup(QDialog):
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.threadpool = QThreadPool()
         self.td1sthread = None
         self.aux_region_size = None
         self.aux_region_offset = None
@@ -193,12 +258,6 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.actionLoad.triggered.connect(self.on_load_file)
         self.actionSave.triggered.connect(self.on_save_file)
         self.gtinedit.setValidator(GTINValidator(self.gtinedit))
-
-        self.labelworker = LabelWorker()
-        self.labelthread = QThread()
-        self.labelworker.moveToThread(self.labelthread)
-        self.labelthread.start()
-        self.labelworker.label_update.connect(self.update_statusbar)
 
         # Setup nfc reader detection
         self.readtagbtn.clicked.connect(self.on_read_tag)
@@ -232,10 +291,6 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.msg("TD1S removed.")
         self.td1sbutton.setDisabled(True)
 
-    @Slot(str)
-    def update_statusbar(self, text: str, value:int):
-        self.statusbar.showMessage(text, value)
-
     def on_pm3_detected(self):
         self.msg("Proxmark3 detected.")
         self.readtagbtn.setDisabled(False)
@@ -247,41 +302,67 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.writetagbtn.setDisabled(True)
 
     def msg(self, text, value: int = 0):
-        self.labelworker.emit(self.tr(text), value)
+        self.statusbar.showMessage(self.tr(text), value)
+
+    def set_progress(self, value:int):
+        self.progressBar.setValue(value)
+        self.progressBar.update()
 
     def on_read_tag(self):
-        pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
-        try:
-            self.msg("Reading nfc tag via PM3...")
-            tag = pm3.dump(filename=None)
-        except Exception as e:
-            self.msg(f"Error on reading nfc tag: {str(e)}")
-            return
+        self.progressBar.setValue(0)
+        self.msg("Starting...")
+
+        worker = PM3_ReadTagWorker()
+
+        # Connect signals to UI updates
+        worker.signals.progress.connect(self.set_progress)
+        worker.signals.status.connect(self.msg)
+        worker.signals.error.connect(lambda msg: self.msg(msg))  # Reuse your existing msg method
+        worker.signals.finished.connect(self.handle_tag_read_success)
+
+        # Start the worker in the thread pool
+        self.threadpool.start(worker)
+
+    def handle_tag_read_success(self, tag):
         try:
             self.load_data(tag.data)
+            self.msg("Tag read and parsed successfully.")
         except Exception as e:
             self.msg(f"Error on parsing nfc tag: {str(e)}")
+        finally:
+            self.set_progress(0)
+            self.msg("")
 
     def on_write_tag(self):
-        tagdata = self.generate_tag_data()
-        pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+        self.set_progress(0)
+        self.msg("Generating tag data...")
+
+        worker = PM3_WriteTagWorker(parent=self)
+
+        # Connect signals to UI updates
+        worker.signals.progress.connect(self.set_progress)
+        worker.signals.status.connect(self.msg)
+        worker.signals.error.connect(lambda msg: self.msg(msg))  # Reuse your existing msg method
+        worker.signals.finished.connect(self.handle_tag_write_success)
+
+        # Start the worker in the thread pool
+        self.threadpool.start(worker)
+
+    def handle_tag_write_success(self):
         try:
-            if pm3.restore(data_or_filename=tagdata, fast=True):
-                self.msg("Succeeded writing nfc tag")
-            else:
-                self.msg("Error on writing nfc tag")
+            self.msg("Tag written successfully.")
         except Exception as e:
-            self.msg(f"Error on reading nfc tag: {str(e)}")
-            return
-        pass
+            self.msg(f"Error on writing nfc tag: {str(e)}")
+        finally:
+            self.set_progress(0)
+            self.msg("")
 
     def on_td1s_data_ready(self, td, color):
         if td is None and color is None:
             self.show_message_box(self.tr("Error"), self.tr("Couldn't detect td1s"), QMessageBox.Icon.Critical)
             return
         elif td == "" and color == "":
-            self.labelworker.emit(
-                self.tr("TD1S TD: Please try again, no color detected. Insert filament after button click"), 0)
+            self.msg("TD1S TD: Please try again, no color detected. Insert filament after button click", 0)
         else:
             self.msg(f"TD1S TD: {td}\nColor: #{color}", 2000)
             self.update_color_label("#" + color, self.colorlabel)
@@ -447,12 +528,6 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.matpropwidget.uncheck()
         self.matpropwidget.filter_check.setChecked(False)
         fields, uri = self.parse_tag_data(data)
-        if uri != "":
-            self.includeurlcheckbox.setChecked(True)
-            self.urledit.setText(uri)
-        else:
-            self.includeurlcheckbox.setChecked(False)
-            self.urledit.setText("")
         if "meta" in fields:
             meta = fields["meta"]
             if "aux_region_offset" in meta:
@@ -577,6 +652,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                         self.matpropwidget.set_property_checked(property_name=prop, checked=True)
                         self.check_tag_implies(tag)
                 self.matpropwidget.filter_check.setChecked(True)
+
+            # Make sure uri is read after manufacturer or material change
+            if uri != "":
+                self.includeurlcheckbox.setChecked(True)
+                self.urledit.setText(uri)
+            else:
+                self.includeurlcheckbox.setChecked(False)
+                self.urledit.setText("")
 
     def on_load_file(self):
         filename, selfilter = QFileDialog.getOpenFileName(self, self.tr("Select Tag data file"))

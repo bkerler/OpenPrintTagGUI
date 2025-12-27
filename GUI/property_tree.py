@@ -225,7 +225,8 @@ class PropertyFilterWidget(QWidget):
         for category in self.data:
             fields = self.data[category]
             if property_name in fields:
-                return fields[property_name]
+                if "name" in fields[property_name]:
+                    return fields[property_name]["name"]
         return None
 
     def get_name(self, tag:str):
