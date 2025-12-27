@@ -5,6 +5,7 @@ from typing import Literal
 from serial import Serial
 from enum import Enum
 
+
 class PM3CMD(Enum):
     # For the bootloader
     DEVICE_INFO = 0x0000
@@ -54,7 +55,8 @@ class PM3CMD(Enum):
     # RDV40, High level flashmem SPIFFS Manipulation
     # ALL function will have a lazy or Safe version
     # that will be handled as argument of safety level [0..2] respectiveley normal / lazy / safe
-    # However as how design is, MOUNT and UNMOUNT only need/have lazy as safest level so a safe level will still execute a lazy version
+    # However as how design is, MOUNT and UNMOUNT only need/have lazy as
+    # safest level so a safe level will still execute a lazy version
     # see spiffs.c for more about the normal/lazy/safety information)
     SPIFFS_MOUNT = 0x0130
     SPIFFS_UNMOUNT = 0x0131
@@ -401,6 +403,7 @@ class PM3CMD(Enum):
 
     UNKNOWN = 0xFFFF
 
+
 class Packet(bytearray):
     def __str__(self):
         return self.__repr__()
@@ -416,39 +419,39 @@ class Packet(bytearray):
     def merge(*items):
         return Packet(b''.join(items))
 
-    def get(self, offset:int, endianness:Literal["little","big"]="little", length:int=1, signed=False) -> int:
+    def get(self, offset: int, endianness: Literal["little", "big"] = "little", length: int = 1, signed=False) -> int:
         return int.from_bytes(
             bytes=self[offset: offset + length], byteorder=endianness, signed=signed)
 
-    def set(self, offset: int, value: int, endianness: Literal["little", "big"] = "little", length:int=1,
-                 signed=False) -> None:
+    def set(self, offset: int, value: int, endianness: Literal["little", "big"] = "little", length: int = 1,
+            signed=False) -> None:
         self[offset: offset + length] = value.to_bytes(length=length, byteorder=endianness, signed=signed)
 
-    def u8(self, offset:int, endianness: Literal["little", "big"] = "little", **kwargs):
+    def u8(self, offset: int, endianness: Literal["little", "big"] = "little", **kwargs):
         if "value" in kwargs:
             self.set(offset=offset, value=kwargs["value"], endianness=endianness, length=2, signed=False)
         else:
             return self.get(offset=offset, endianness=endianness, length=1, signed=False)
 
-    def u16(self, offset:int, endianness: Literal["little", "big"] = "little", **kwargs):
+    def u16(self, offset: int, endianness: Literal["little", "big"] = "little", **kwargs):
         if "value" in kwargs:
             self.set(offset=offset, value=kwargs["value"], endianness=endianness, length=2, signed=False)
         else:
             return self.get(offset=offset, endianness=endianness, length=2, signed=False)
 
-    def u24(self, offset:int, endianness: Literal["little", "big"] = "little", **kwargs):
+    def u24(self, offset: int, endianness: Literal["little", "big"] = "little", **kwargs):
         if "value" in kwargs:
             self.set(offset=offset, value=kwargs["value"], endianness=endianness, length=3, signed=False)
         else:
             return self.get(offset=offset, endianness=endianness, length=3, signed=False)
 
-    def u32(self, offset:int, endianness: Literal["little", "big"] = "little", **kwargs):
+    def u32(self, offset: int, endianness: Literal["little", "big"] = "little", **kwargs):
         if "value" in kwargs:
             self.set(offset=offset, value=kwargs["value"], endianness=endianness, length=4, signed=False)
         else:
             return self.get(offset=offset, endianness=endianness, length=4, signed=False)
 
-    def u64(self, offset:int, endianness: Literal["little", "big"] = "little", **kwargs):
+    def u64(self, offset: int, endianness: Literal["little", "big"] = "little", **kwargs):
         if "value" in kwargs:
             self.set(offset=offset, value=kwargs["value"], endianness=endianness, length=8, signed=False)
         else:
@@ -484,6 +487,7 @@ class Packet(bytearray):
         else:
             return self.get(offset=offset, endianness=endianness, length=8, signed=True)
 
+
 class PacketResponse:
     def __init__(self, packet: Packet):
         if not isinstance(packet, Packet):
@@ -497,6 +501,7 @@ class PacketResponse:
 
     def getArg(self, index):
         return self.packet.u64(offset=8 + (index << 3))
+
 
 class PacketResponseNG:
     def __init__(self, packet: Packet):
@@ -529,11 +534,13 @@ class PacketResponseNG:
     def getArg(self, index):
         return self.packet.u64(offset=10 + (index << 3))
 
+
 class ISODEP_STATE_T(Enum):
     ISODEP_INACTIVE = 0
     ISODEP_NFCA = 1
     ISODEP_NFCB = 2
     ISODEP_NFCV = 3
+
 
 class Proxmark3Handler(Serial):
     def __init__(
@@ -555,7 +562,7 @@ class Proxmark3Handler(Serial):
                          inter_byte_timeout, exclusive)
         self.isodep_state = None
 
-    def SendCommandNG(self, cmd:int, data:Packet=None, ng=True):
+    def SendCommandNG(self, cmd: int, data: Packet = None, ng=True):
         self.reset_input_buffer()
         if data and not isinstance(data, Packet):
             raise ValueError("data must be a Packet object")
@@ -565,12 +572,12 @@ class Proxmark3Handler(Serial):
                 raise ValueError("data must be less than 0x200 bytes")
         else:
             length = 0
-        packet = Packet(length+0xA)
-        packet[:4]=b'PM3a'
+        packet = Packet(length + 0xA)
+        packet[:4] = b'PM3a'
         packet.u16(offset=4, value=length + (0x8000 if ng else 0))
         packet.u16(offset=6, value=cmd)
         if data is not None:
-            packet[8 : length + 8] = data
+            packet[8: length + 8] = data
         packet[-2:] = b"a3"
         if not self.is_open:
             self.open()
@@ -592,21 +599,20 @@ class Proxmark3Handler(Serial):
             raise Exception('Failed to get ping')
         return resp
 
-
     def version(self):
-        pkt=Packet()
+        pkt = Packet()
         self.SendCommandNG(cmd=PM3CMD.VERSION.value, data=pkt)
         resp = self.waitRespTimeout(PM3CMD.VERSION.value)
         if resp.status:
             raise Exception('Failed to get version')
-        data=resp.data
+        data = resp.data
         id = int.from_bytes(data[:4], byteorder='little')
         section_size = int.from_bytes(data[4:8], byteorder='little')
         versionstr_len = int.from_bytes(data[8:12], byteorder='little')
-        versionstr = data[12:12+versionstr_len]
+        versionstr = data[12:12 + versionstr_len]
         return id, section_size, versionstr
 
-    def sendCommandMix(self, cmd:int, arg:list=None, data:Packet=None):
+    def sendCommandMix(self, cmd: int, arg: list = None, data: Packet = None):
         if arg is None:
             arg = []
         if data and not isinstance(data, Packet):
@@ -621,7 +627,7 @@ class Proxmark3Handler(Serial):
             packet.u64(offset=i << 3, value=arg[i] if i in arg else 0)
         self.SendCommandNG(cmd=cmd, data=packet, ng=False)
 
-    def SetISODEPState(self, state:ISODEP_STATE_T=ISODEP_STATE_T.ISODEP_INACTIVE):
+    def SetISODEPState(self, state: ISODEP_STATE_T = ISODEP_STATE_T.ISODEP_INACTIVE):
         self.isodep_state = state.value
 
     def DropField(self):
@@ -636,7 +642,7 @@ class Proxmark3Handler(Serial):
         if pre[0:4] == b'PM3b':
             return PacketResponseNG(Packet(pre + self.read((pre.u16(offset=4) & 0x7fff) + 2)))
         else:
-            return PacketResponse(Packet(pre + self.read(0x200+0x16)))
+            return PacketResponse(Packet(pre + self.read(0x200 + 0x16)))
 
     def waitRespTimeout(self, cmd, timeout=2500):
         ts = {
@@ -661,8 +667,9 @@ class Proxmark3Handler(Serial):
         finally:
             self.timeout = ts['backup']
 
+
 if __name__ == "__main__":
-    pm3=Proxmark3Handler(port="/dev/ttyACM0",baudrate=115200)
+    pm3 = Proxmark3Handler(port="/dev/ttyACM0", baudrate=115200)
     pm3.ping()
-    id, section_size, versionstr=pm3.version()
+    id, section_size, versionstr = pm3.version()
     print(versionstr.decode('utf-8'))

@@ -6,7 +6,7 @@ import crcmod
 from enum import Enum
 
 from Library.pm3_nfc.pm3_generic import Proxmark3Handler, PM3CMD, Packet
-
+from ..iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, ISO15693_ATQB_LENGTH
 
 class ISO15_COMMAND(Enum):
     ISO15_CONNECT = (1 << 0)
@@ -17,9 +17,6 @@ class ISO15_COMMAND(Enum):
     ISO15_READ_RESPONSE = (1 << 5)
     ISO15_LONG_WAIT = (1 << 6)
 
-
-ISO15693_UID_LENGTH = 8
-ISO15693_ATQB_LENGTH = 7
 ISO15_REQ_SUBCARRIER_SINGLE = 0x00  # Tag should respond using one subcarrier (ASK)
 ISO15_REQ_SUBCARRIER_TWO = 0x01  # Tag should respond using two subcarriers (FSK)
 ISO15_REQ_DATARATE_LOW = 0x00  # Tag should respond using low data rate
@@ -101,88 +98,6 @@ ISO15693_READ_SIGNATURE = 0xBD
 #
 ISO15693_MAGIC_WRITE = 0xE0
 
-ISO15693_TAG_MAX_PAGES = 160  # in pages  (0xA0)
-ISO15693_TAG_MAX_SIZE = 2048  # in byte (64 pages of 256 bits)
-
-
-class ISO15_TAG_T:
-    uid = bytearray(b"\xE0" + b'\x00' * (ISO15693_UID_LENGTH - 1))
-    dsfid = 0
-    dsfidLock = False
-    afi = 0
-    afiLock = False
-    bytesPerPage = 4
-    pagesCount = 128
-    ic = 0
-    locks = bytearray(b"\x00" * ISO15693_TAG_MAX_PAGES)
-    data = bytearray(b"\x00" * ISO15693_TAG_MAX_SIZE)
-    random = b"\x00\x00"
-    privacyPasswd = b"\x00\x00\x00\x00"
-    state = 0
-    expectFast = False
-    expectFsk = False
-
-    def __init__(self, blocksize: int = 4):
-        self.blocksize = blocksize
-
-    def parse(self, data):
-        d = data
-        self.uid = d[2:2 + 8]
-        dCpt = 10
-        if d[1] & 0x1:
-            self.dsfid = d[dCpt]
-        dCpt += 1
-        if d[1] & 0x2:
-            self.afi = d[dCpt]
-        dCpt += 1
-        if d[1] & 0x4:
-            self.pagesCount = d[dCpt] + 1
-            self.bytesPerPage = d[dCpt + 1] + 1
-        else:
-            self.bytesPerPage = self.blocksize
-            self.pagesCount = 128
-        dCpt += 2
-        if d[1] & 0x8:
-            self.ic = d[dCpt]
-        dCpt += 1
-
-    def save(self, filename: str = "dump.bin"):
-        wd = bytearray()
-        wd.extend(self.uid)
-        wd.append(self.dsfid)
-        wd.append(1 if self.dsfidLock else 0)
-        wd.append(self.afi)
-        wd.append(1 if self.afiLock else 0)
-        wd.append(self.bytesPerPage)
-        wd.append(self.pagesCount)
-        wd.append(self.ic)
-        wd.extend(self.locks)
-        wd.extend(self.data)
-        wd.extend(self.random)
-        wd.extend(self.privacyPasswd)
-        wd.extend(int.to_bytes(self.state, 4, 'little'))
-        wd.append(1 if self.expectFast else 0)
-        wd.append(1 if self.expectFsk else 0)
-        with open(filename, "wb") as f:
-            f.write(wd)
-
-    def load(self, filename: str = "dump.bin"):
-        with open(filename, "rb") as f:
-            self.uid = f.read(ISO15693_UID_LENGTH)
-            self.dsfid = f.read(1)[0]
-            self.dsfidLock = True if f.read(1)[0] == 1 else False
-            self.afi = f.read(1)[0]
-            self.afiLock = True if f.read(1)[0] == 1 else False
-            self.bytesPerPage = f.read(1)[0]
-            self.pagesCount = f.read(1)[0]
-            self.ic = f.read(1)[0]
-            self.locks = f.read(ISO15693_TAG_MAX_PAGES)
-            self.data = f.read(ISO15693_TAG_MAX_SIZE)
-            self.random = f.read(2)
-            self.privacyPasswd = f.read(4)
-            self.state = f.read(1)[0]
-            self.expectFast = True if f.read(1)[0] == 1 else False
-            self.expectFsk = True if f.read(1)[0] == 1 else False
 
 
 class ISO15_RAW_CMD_T:
@@ -197,8 +112,9 @@ class ISO15_RAW_CMD_T:
 
 class PM3_HF15(Proxmark3Handler):
 
-    def __init__(self, port: str, baudrate: int = 115200):
+    def __init__(self, port: str, baudrate: int = 115200, logger=print):
         super().__init__(port=port, baudrate=baudrate)
+        self.logger = logger
 
     def iso15_card_select_t(self, data):
         rf = BytesIO(bytearray(data))
@@ -264,7 +180,8 @@ class PM3_HF15(Proxmark3Handler):
         Get system info : Using scan mode, unaddressed = false
         """
         uid = self.getUID()
-        print(f'UID detected: {uid.hex()}')
+        if uid != b"":
+            self.logger(f'UID detected: {uid.hex()}')
 
         add_option = False
         if uid[7] == b"\xE0" and uid[6] == 0x07:
@@ -288,11 +205,11 @@ class PM3_HF15(Proxmark3Handler):
             raise Exception('Failed to get system info')
         tag = ISO15_TAG_T(blocksize)
         if self.iso15_error_handling_card_response(resp.data):
-            print("All ok")
+            # print("All ok")
             tag.parse(resp.data)
         return tag
 
-    def dump(self, filename: str = None, fast: bool = True, blocksize: int = 4):
+    def dump(self, filename: str = None, fast: bool = True, blocksize: int = 4, progress=None):
         tag = self.iso15_get_system_info(fast=fast, blocksize=blocksize)
 
         raw = bytearray(int.to_bytes(self.arg_get_raw_flag(uidlen=0, unaddressed=False, scan=True, add_option=False), 1,
@@ -305,7 +222,11 @@ class PM3_HF15(Proxmark3Handler):
             flags |= ISO15_COMMAND.ISO15_HIGH_SPEED.value
         if tag.uid[0] != b"\xE0":
             raw.extend(tag.uid)
+        if progress:
+            progress(0)
         for blocknum in range(tag.pagesCount):
+            if progress:
+                progress(blocknum / tag.pagesCount * 100)
             draw = raw + int.to_bytes(blocknum & 0xFF, 1)
             pkt = ISO15_RAW_CMD_T(flags=flags, raw=draw).pkt
             self.SendCommandNG(cmd=PM3CMD.HF_ISO15693_COMMAND.value, data=pkt)
@@ -314,20 +235,22 @@ class PM3_HF15(Proxmark3Handler):
                 raise Exception('Failed to read block data')
             d = resp.data
             if d[0] & ISO15_RES_ERROR == ISO15_RES_ERROR:
-                if (d[1] == 0x0F or d[1] == 0x10):
+                if d[1] == 0x0F or d[1] == 0x10:
                     break
                 raise Exception('Failed to read block data')
             tag.locks[blocknum] = resp.data[1]
             pgdata = resp.data[2:]
             tag.data[blocknum * tag.bytesPerPage:(blocknum * tag.bytesPerPage) + tag.bytesPerPage] = bytearray(
                 pgdata[:tag.bytesPerPage])
+        if progress:
+            progress(100)
         if filename is None:
             return tag
         tag.save(filename)
         self.DropField()
-        return tag.data
+        return tag
 
-    def write_blk(self, pm3flags:int, flags:int, uid:bytes, fast:bool, blockno, data:bytes):
+    def write_blk(self, pm3flags: int, flags: int, uid: bytes, fast: bool, blockno, data: bytes):
         # 504D3361 1480 1303 73 1100 2221 BD4AEC18090104E0 00 E1402701 C919 6133
         raw = bytearray()
         raw.append(flags)
@@ -341,8 +264,8 @@ class PM3_HF15(Proxmark3Handler):
             flags = pm3flags
         else:
             flags = (ISO15_COMMAND.ISO15_LONG_WAIT.value |
-                 ISO15_COMMAND.ISO15_READ_RESPONSE.value |
-                 ISO15_COMMAND.ISO15_NO_DISCONNECT.value)
+                     ISO15_COMMAND.ISO15_READ_RESPONSE.value |
+                     ISO15_COMMAND.ISO15_NO_DISCONNECT.value)
             if fast:
                 flags |= ISO15_COMMAND.ISO15_HIGH_SPEED.value
         pkt = ISO15_RAW_CMD_T(flags=flags, raw=raw).pkt
@@ -354,7 +277,7 @@ class PM3_HF15(Proxmark3Handler):
             return True
         return False
 
-    def restore(self, data_or_filename, fast: bool = False, blocksize: int = 4):
+    def restore(self, data_or_filename, fast: bool = False, blocksize: int = 4, progress=None):
         tag = self.iso15_get_system_info(fast=fast, blocksize=blocksize)
         add_option = False
         if isinstance(data_or_filename, str):
@@ -375,16 +298,28 @@ class PM3_HF15(Proxmark3Handler):
                                       unaddressed=False,
                                       scan=True,
                                       add_option=add_option)
-        for blocknum in range(tag.pagesCount):
+        filldata = tag.data
+        if len(filldata) % tag.bytesPerPage != 0:
+            filldata += b"\x00" * tag.bytesPerPage - (len(filldata) % tag.bytesPerPage)
+        blocks = len(filldata) // tag.bytesPerPage
+        if progress:
+            progress(0)
+        blockstowrite = min(blocks, tag.pagesCount)
+        for blocknum in range(blockstowrite):
+            if progress:
+                progress(blocknum / blockstowrite * 100)
             if not self.write_blk(pm3flags=pm3flags, flags=flags,
-                           uid=tag.uid, fast=fast, blockno=blocknum,
-                           data=tag.data[blocknum*tag.bytesPerPage:(blocknum*tag.bytesPerPage)+tag.bytesPerPage]):
+                                  uid=tag.uid, fast=fast, blockno=blocknum,
+                                  data=tag.data[
+                                       blocknum * tag.bytesPerPage:(blocknum * tag.bytesPerPage) + tag.bytesPerPage]):
                 return False
             if blocknum == 0:
                 pm3flags = (ISO15_COMMAND.ISO15_LONG_WAIT.value |
                             ISO15_COMMAND.ISO15_READ_RESPONSE.value |
                             ISO15_COMMAND.ISO15_NO_DISCONNECT.value)
         self.DropField()
+        if progress:
+            progress(100)
         return True
 
 
