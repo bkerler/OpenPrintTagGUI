@@ -2,13 +2,12 @@
 # (c) B.Kerler 2025
 # GPLv3 License
 
-import json
 import os
 import sys
 from collections import deque
 
 import yaml
-from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread
+from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
@@ -23,26 +22,90 @@ from GUI.gui import Ui_OpenPrintTagGui
 from Library.OpenPrintTag.utils.record import Record
 from Library.OpenPrintTag.utils.common import default_config_file
 from Library.OpenPrintTag.utils.nfc_initialize import nfc_initialize, Args
+from Library.pm3_nfc.pm3_hf15 import PM3_HF15
 from Library.td1s import collect_data
+import serial.tools.list_ports
+
+
+class DeviceDetector(QObject):
+    """
+    A QObject that polls for a specific USB serial device (by VID/PID)
+    and emits a signal when it is detected.
+    """
+    device_detected = Signal(str)  # Emits the port name when detected
+    device_removed = Signal()  # Optional: emitted when device disappears
+
+    def __init__(self, target_vid: int, target_pid: int, poll_interval_ms: int = 1000):
+        """
+        :param target_vid: Vendor ID in decimal (e.g., 0x2341 for Arduino)
+        :param target_pid: Product ID in decimal
+        :param poll_interval_ms: How often to scan for the device (default 1 second)
+        """
+        super().__init__()
+        self.target_vid = target_vid
+        self.target_pid = target_pid
+        self.poll_interval = poll_interval_ms
+
+        self.current_port = None
+
+        # QTimer for polling
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.check_device)
+        self.timer.start(self.poll_interval)
+
+    @Slot()
+    def check_device(self):
+        """Scan all ports and check for matching VID/PID."""
+        found_port = None
+        for port in serial.tools.list_ports.comports():
+            if port.vid == self.target_vid and port.pid == self.target_pid:
+                found_port = port.device
+                break
+
+        if found_port and found_port != self.current_port:
+            # Device just appeared
+            self.current_port = found_port
+            self.device_detected.emit(found_port)
+        elif not found_port and self.current_port is not None:
+            # Device was removed
+            self.current_port = None
+            self.device_removed.emit()
+
+    def stop(self):
+        """Stop the polling timer (call on application shutdown if needed)."""
+        self.timer.stop()
+
+
+class LabelWorker(QObject):
+    """Background worker that emits text updates."""
+    label_update = Signal(str, int)
+
+    @Slot()
+    def emit(self, text, value: int = 0):
+        self.label_update.emit(text, value)
+
 
 # Worker signals
 class WorkerSignals(QObject):
     finished = Signal(object, object)  # td, color
     error = Signal(Exception)
 
+
 # Worker thread
 class DataCollectorThread(QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.signals = WorkerSignals()
+        self.parent = parent
 
     def run(self):
         try:
-            td, color = collect_data()
+            td, color = collect_data(logger=self.parent.labelworker.emit)
             # Emit result to main thread
             self.signals.finished.emit(td, color)
         except Exception as e:
             self.signals.error.emit(e)
+
 
 class DateValidator(QValidator):
     """Validator that only accepts dates in the system locale format."""
@@ -131,31 +194,102 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.actionSave.triggered.connect(self.on_save_file)
         self.gtinedit.setValidator(GTINValidator(self.gtinedit))
 
-        # toDo implement
+        self.labelworker = LabelWorker()
+        self.labelthread = QThread()
+        self.labelworker.moveToThread(self.labelthread)
+        self.labelthread.start()
+        self.labelworker.label_update.connect(self.update_statusbar)
+
+        # Setup nfc reader detection
+        self.readtagbtn.clicked.connect(self.on_read_tag)
+        self.writetagbtn.clicked.connect(self.on_write_tag)
+
         self.readtagbtn.setDisabled(True)
         self.writetagbtn.setDisabled(True)
+        self.td1sbutton.setDisabled(True)
+
+        # Proxmark 3
+        self.pm3_detector = DeviceDetector(target_vid=0x9ac4, target_pid=0x4b8f, poll_interval_ms=1000)
+        self.pm3_detector.device_detected.connect(self.on_pm3_detected)
+        self.pm3_detector.device_removed.connect(self.on_pm3_removed)
+
+        # TD1S
+        self.td1s_detector = DeviceDetector(target_vid=0xe4b2, target_pid=0x0045, poll_interval_ms=1000)
+        self.td1s_detector.device_detected.connect(self.on_td1s_detected)
+        self.td1s_detector.device_removed.connect(self.on_td1s_removed)
         self.td1sbutton.clicked.connect(self.readtd1s)
-        # end ToDo
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
         self.colornamebox.setCurrentIndex(0)
 
+    def on_td1s_detected(self):
+        self.msg("TD1S detected.")
+        self.td1sbutton.setDisabled(False)
+
+    def on_td1s_removed(self):
+        self.msg("TD1S removed.")
+        self.td1sbutton.setDisabled(True)
+
+    @Slot(str)
+    def update_statusbar(self, text: str, value:int):
+        self.statusbar.showMessage(text, value)
+
+    def on_pm3_detected(self):
+        self.msg("Proxmark3 detected.")
+        self.readtagbtn.setDisabled(False)
+        self.writetagbtn.setDisabled(False)
+
+    def on_pm3_removed(self):
+        self.msg("Proxmark3 removed.")
+        self.readtagbtn.setDisabled(True)
+        self.writetagbtn.setDisabled(True)
+
+    def msg(self, text, value: int = 0):
+        self.labelworker.emit(self.tr(text), value)
+
+    def on_read_tag(self):
+        pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+        try:
+            self.msg("Reading nfc tag via PM3...")
+            tag = pm3.dump(filename=None)
+        except Exception as e:
+            self.msg(f"Error on reading nfc tag: {str(e)}")
+            return
+        try:
+            self.load_data(tag.data)
+        except Exception as e:
+            self.msg(f"Error on parsing nfc tag: {str(e)}")
+
+    def on_write_tag(self):
+        tagdata = self.generate_tag_data()
+        pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
+        try:
+            if pm3.restore(data_or_filename=tagdata, fast=True):
+                self.msg("Succeeded writing nfc tag")
+            else:
+                self.msg("Error on writing nfc tag")
+        except Exception as e:
+            self.msg(f"Error on reading nfc tag: {str(e)}")
+            return
+        pass
+
     def on_td1s_data_ready(self, td, color):
         if td is None and color is None:
-            self.show_message_box("Error", "Couldn't detect td1s", QMessageBox.Icon.Critical)
+            self.show_message_box(self.tr("Error"), self.tr("Couldn't detect td1s"), QMessageBox.Icon.Critical)
             return
-        elif td=="" and color=="":
-            self.statusbar.showMessage(f"TD1S TD: Please try again, no color detected. Insert filament after button click", 0)
+        elif td == "" and color == "":
+            self.labelworker.emit(
+                self.tr("TD1S TD: Please try again, no color detected. Insert filament after button click"), 0)
         else:
-            self.statusbar.showMessage(f"TD1S TD: {td}\nColor: #{color}",2000)
-            self.update_color_label("#"+color,self.colorlabel)
-            self.primarycoloredit.setText("#"+color)
+            self.msg(f"TD1S TD: {td}\nColor: #{color}", 2000)
+            self.update_color_label("#" + color, self.colorlabel)
+            self.primarycoloredit.setText("#" + color)
             self.transmissiondistanceedit.setText(td)
 
     def on_td1s_error(self, exc):
-        self.show_message_box("Error",f"TD1S error : {str(exc)}",QMessageBox.Icon.Critical)
+        self.show_message_box(self.tr("Error"), self.tr(f"TD1S error: {str(exc)}"), QMessageBox.Icon.Critical)
 
     def on_td1s_thread_done(self):
         self.td1sbutton.setEnabled(True)
@@ -164,7 +298,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.td1sthread and self.td1sthread.isRunning():
             return  # Already running
 
-        self.statusbar.showMessage("Collecting td1s data... please insert filament",0)
+        self.msg("Collecting td1s data... please insert filament")
         self.td1sbutton.setEnabled(False)
 
         # Create and start thread
@@ -190,107 +324,111 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         msg.setWindowTitle(title)
         msg.setText(message)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        result = msg.exec()
+        msg.exec()
+
+    def generate_tag_data(self):
+        args = Args(
+            size=304,  # 136 for smaller chip
+            aux_region=32,  # 16 for smaller chip
+            config_file=default_config_file)
+
+        if self.includeurlcheckbox.isChecked():
+            args.ndef_uri = self.urledit.toPlainText()
+
+        # Create empty tag
+        emptytag_data = nfc_initialize(args)
+
+        # Fill empty tag with data
+        record = Record(args.config_file, memoryview(bytearray(emptytag_data)))
+
+        update_data = {}
+        consumed_weight = self.consumedweightbox.value()
+        if consumed_weight != 0:
+            update_data["aux"] = {}
+            update_data["aux"]["consumed_weight"] = consumed_weight
+        update_data["main"] = dict(
+            material_class=self.materialclassbox.currentText().split(" ")[0],
+            material_type=self.materialtypebox.currentText().split(" ")[0],
+            material_name=self.materialnamebox.currentText(),
+            brand_name=self.brandnamebox.currentText(),
+            manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
+            nominal_netto_full_weight=self.nominalweightbox.value(),
+            actual_netto_full_weight=self.actualweightbox.value(),
+            empty_container_weight=self.emptycontainerbox.value()
+        )
+        if self.gtinedit.text() != "":
+            update_data["main"]["gtin"] = int(self.gtinedit.text())
+        if self.expdateedit.text() != "00.00.00":
+            update_data["main"]["expiration_date"] = self.locale_to_timestamp(self.dateedit.text())
+        if self.primarycoloredit.text() != "":
+            update_data["main"]["primary_color"] = {}
+            update_data["main"]["primary_color"]["hex"] = self.primarycoloredit.text().replace("#", "")
+        if self.secondarycolor0edit_0.text() != "":
+            update_data["main"]["secondary_color_0"] = {}
+            update_data["main"]["secondary_color_0"]["hex"] = self.secondarycolor0edit_0.text().replace("#", "")
+        if self.secondarycolor0edit_1.text() != "":
+            update_data["main"]["secondary_color_1"] = {}
+            update_data["main"]["secondary_color_1"]["hex"] = self.secondarycolor0edit_1.text().replace("#", "")
+        if self.secondarycolor0edit_2.text() != "":
+            update_data["main"]["secondary_color_2"] = {}
+            update_data["main"]["secondary_color_2"]["hex"] = self.secondarycolor0edit_2.text().replace("#", "")
+        if self.secondarycolor0edit_3.text() != "":
+            update_data["main"]["secondary_color_3"] = {}
+            update_data["main"]["secondary_color_3"]["hex"] = self.secondarycolor0edit_3.text().replace("#", "")
+        if self.secondarycolor0edit_4.text() != "":
+            update_data["main"]["secondary_color_4"] = {}
+            update_data["main"]["secondary_color_4"]["hex"] = self.secondarycolor0edit_4.text().replace("#", "")
+        if self.transmissiondistanceedit.text() != "":
+            update_data["main"]["transmission_distance"] = float(self.transmissiondistanceedit.text())
+        if self.densityedit.text != "":
+            update_data["main"]["density"] = float(self.densityedit.text())
+        if self.diameteredit.text() != "1.75":
+            update_data["main"]["filament_diameter"] = float(self.diameteredit.text())
+        # nominal_full_length
+        # actual_full_length
+        # shore_hardness_a
+        # shore_hardness_d
+        # min_nozzle_diameter
+        if self.minprinttempbox.value() != 0:
+            update_data["main"]["min_print_temperature"] = self.minprinttempbox.value()
+        if self.maxprinttempbox.value() != 0:
+            update_data["main"]["max_print_temperature"] = self.maxprinttempbox.value()
+        if self.minbedtempbox.value() != 0:
+            update_data["main"]["min_bed_temperature"] = self.minbedtempbox.value()
+        if self.maxbedtempbox.value() != 0:
+            update_data["main"]["max_bed_temperature"] = self.maxbedtempbox.value()
+        if self.preheattempbox.value() != 0:
+            update_data["main"]["preheat_temperature"] = self.preheattempbox.value()
+        # min_chamber_temperature
+        # max_chamber_temperature
+        # chamber_temperature
+        # container_width
+        # container_outer_diameter
+        # container_inner_diameter
+        # container_hole_diameter
+        # viscosity_18c, viscosity_25c, viscosity_40c, viscoity_60c
+        # container_volumetric_capacity
+        # cure_wavelength
+        update_data["main"]["tags"] = []
+        items = self.matpropwidget.get_checked_items()
+        for category in items:
+            for prop in items[category]:
+                update_data["main"]["tags"].append(self.matpropwidget.get_tag(prop))
+        for region_name, region in record.regions.items():
+            region.update(
+                update_fields=update_data.get(region_name, dict())
+            )
+        return record.data.tobytes()
 
     def on_save_file(self):
         fn = (self.brandnamebox.currentText().replace(" ", "_").replace("-", "_") + "_" +
               self.materialnamebox.currentText().replace(" ", "_").replace("-", "_") + "_" +
               self.colornamebox.currentText().replace(" ", "_").replace("-", "_")) + ".bin"
-        filename, selfilter = QFileDialog.getSaveFileName(self, "Select Tag data file", dir=fn)
+        filename, selfilter = QFileDialog.getSaveFileName(self, self.tr("Select Tag data file"), dir=fn)
         if filename != "":
-            args = Args(
-                size=304,  # 136 for smaller chip
-                aux_region=32,  # 16 for smaller chip
-                config_file=default_config_file)
-
-            if self.includeurlcheckbox.isChecked():
-                args.ndef_uri = self.urledit.toPlainText()
-
-            # Create empty tag
-            emptytag_data = nfc_initialize(args)
-
-            # Fill empty tag with data
-            record = Record(args.config_file, memoryview(bytearray(emptytag_data)))
-
-            update_data = {}
-            consumed_weight = self.consumedweightbox.value()
-            if consumed_weight != 0:
-                update_data["aux"] = {}
-                update_data["aux"]["consumed_weight"] = consumed_weight
-            update_data["main"] = dict(
-                material_class=self.materialclassbox.currentText().split(" ")[0],
-                material_type=self.materialtypebox.currentText().split(" ")[0],
-                material_name=self.materialnamebox.currentText(),
-                brand_name=self.brandnamebox.currentText(),
-                manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
-                nominal_netto_full_weight=self.nominalweightbox.value(),
-                actual_netto_full_weight=self.actualweightbox.value(),
-                empty_container_weight=self.emptycontainerbox.value()
-            )
-            if self.gtinedit.text() != "":
-                update_data["main"]["gtin"] = int(self.gtinedit.text())
-            if self.expdateedit.text() != "00.00.00":
-                update_data["main"]["expiration_date"] = self.locale_to_timestamp(self.dateedit.text())
-            if self.primarycoloredit.text() != "":
-                update_data["main"]["primary_color"] = {}
-                update_data["main"]["primary_color"]["hex"] = self.primarycoloredit.text().replace("#", "")
-            if self.secondarycolor0edit_0.text() != "":
-                update_data["main"]["secondary_color_0"] = {}
-                update_data["main"]["secondary_color_0"]["hex"] = self.secondarycolor0edit_0.text().replace("#", "")
-            if self.secondarycolor0edit_1.text() != "":
-                update_data["main"]["secondary_color_1"] = {}
-                update_data["main"]["secondary_color_1"]["hex"] = self.secondarycolor0edit_1.text().replace("#", "")
-            if self.secondarycolor0edit_2.text() != "":
-                update_data["main"]["secondary_color_2"] = {}
-                update_data["main"]["secondary_color_2"]["hex"] = self.secondarycolor0edit_2.text().replace("#", "")
-            if self.secondarycolor0edit_3.text() != "":
-                update_data["main"]["secondary_color_3"] = {}
-                update_data["main"]["secondary_color_3"]["hex"] = self.secondarycolor0edit_3.text().replace("#", "")
-            if self.secondarycolor0edit_4.text() != "":
-                update_data["main"]["secondary_color_4"] = {}
-                update_data["main"]["secondary_color_4"]["hex"] = self.secondarycolor0edit_4.text().replace("#", "")
-            if self.transmissiondistanceedit.text() != "":
-                update_data["main"]["transmission_distance"] = float(self.transmissiondistanceedit.text())
-            if self.densityedit.text != "":
-                update_data["main"]["density"] = float(self.densityedit.text())
-            if self.diameteredit.text() != "1.75":
-                update_data["main"]["filament_diameter"] = float(self.diameteredit.text())
-            # nominal_full_length
-            # actual_full_length
-            # shore_hardness_a
-            # shore_hardness_d
-            # min_nozzle_diameter
-            if self.minprinttempbox.value() != 0:
-                update_data["main"]["min_print_temperature"] = self.minprinttempbox.value()
-            if self.maxprinttempbox.value() != 0:
-                update_data["main"]["max_print_temperature"] = self.maxprinttempbox.value()
-            if self.minbedtempbox.value() != 0:
-                update_data["main"]["min_bed_temperature"] = self.minbedtempbox.value()
-            if self.maxbedtempbox.value() != 0:
-                update_data["main"]["max_bed_temperature"] = self.maxbedtempbox.value()
-            if self.preheattempbox.value() != 0:
-                update_data["main"]["preheat_temperature"] = self.preheattempbox.value()
-            # min_chamber_temperature
-            # max_chamber_temperature
-            # chamber_temperature
-            # container_width
-            # container_outer_diameter
-            # container_inner_diameter
-            # container_hole_diameter
-            # viscosity_18c, viscosity_25c, viscosity_40c, viscoity_60c
-            # container_volumetric_capacity
-            # cure_wavelength
-            update_data["main"]["tags"] = []
-            items = self.matpropwidget.get_checked_items()
-            for category in items:
-                for prop in items[category]:
-                    update_data["main"]["tags"].append(self.matpropwidget.get_tag(prop))
-            for region_name, region in record.regions.items():
-                region.update(
-                    update_fields=update_data.get(region_name, dict())
-                )
-            if open(filename, "wb").write(record.data.tobytes()):
-                self.show_message_box(title="Info", message=f"Successfully wrote {filename}")
+            tagdata = self.generate_tag_data()
+            if open(filename, "wb").write(tagdata):
+                self.show_message_box(title=self.tr("Info"), message=self.tr(f"Successfully wrote {filename}"))
 
     def check_tag_implies(self, tag):
         dq = deque()
@@ -305,10 +443,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
                         dq.append(subprop)
 
-    def load_file(self, filename):
+    def load_data(self, data):
         self.matpropwidget.uncheck()
         self.matpropwidget.filter_check.setChecked(False)
-        data = open(filename, "rb").read()
         fields, uri = self.parse_tag_data(data)
         if uri != "":
             self.includeurlcheckbox.setChecked(True)
@@ -355,7 +492,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 cf = self.default_filamenttypes.get(cur_material_type)
                 if cf is not None:
                     if "name" in cf:
-                        self.materialtypebox.setCurrentText(cur_material_type + " - "+cf["name"])
+                        self.materialtypebox.setCurrentText(cur_material_type + " - " + cf["name"])
                     else:
                         self.materialtypebox.setCurrentText(cur_material_type)
                 else:
@@ -442,9 +579,13 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.matpropwidget.filter_check.setChecked(True)
 
     def on_load_file(self):
-        filename, selfilter = QFileDialog.getOpenFileName(self, "Select Tag data file")
-        if filename != "":
-            self.load_file(filename)
+        filename, selfilter = QFileDialog.getOpenFileName(self, self.tr("Select Tag data file"))
+        if filename != "" and os.path.exists(filename):
+            data = open(filename, "rb").read()
+            try:
+                self.load_data(data)
+            except Exception as e:
+                self.msg(f"Error on parsing nfc tag: {str(e)}")
 
     def setup_date_view(self):
         self.dateedit.setPlaceholderText(QLocale().dateFormat(QLocale.ShortFormat))
@@ -466,7 +607,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         color = QColorDialog.getColor(
             initial=QColor(self.primarycoloredit.text()),  # start with current color
             parent=self,
-            title="Select a color",
+            title=self.tr("Select a color"),
             options=QColorDialog.ShowAlphaChannel  # remove if you don’t need alpha
         )
 
@@ -482,7 +623,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         color = QColorDialog.getColor(
             initial=QColor(editbox.text()),  # start with current color
             parent=self,
-            title="Select a color",
+            title=self.tr("Select a color"),
             options=QColorDialog.ShowAlphaChannel  # remove if you don’t need alpha
         )
 
@@ -573,7 +714,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         materialclasses = {}
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_class_enum.yaml")
         if not os.path.exists(mc_filename):
-            self.show_message_box(title="Error", message=f"Couldn't find material class database at {mc_filename}",
+            self.show_message_box(title=self.tr("Error"),
+                                  message=self.tr(f"Couldn't find material class database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename).read())
         for item in mc:
@@ -584,13 +726,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         tags = {}
         mcc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tag_categories_enum.yaml")
         if not os.path.exists(mcc_filename):
-            self.show_message_box(title="Error", message=f"Couldn't find categories database at {mcc_filename}",
+            self.show_message_box(title=self.tr("Error"),
+                                  message=self.tr(f"Couldn't find categories database at {mcc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
         mcc = yaml.safe_load(open(mcc_filename).read())
 
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
         if not os.path.exists(mc_filename):
-            self.show_message_box(title="Error", message=f"Couldn't find tags database at {mc_filename}",
+            self.show_message_box(title=self.tr("Error"),
+                                  message=self.tr(f"Couldn't find tags database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename).read())
         for citem in mcc:
@@ -603,23 +747,24 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                         if item["depreciated"]:
                             continue
                     if "category" in item:
-                        if tag_category==item["category"]:
+                        if tag_category == item["category"]:
                             if "display_name" in item:
                                 displayname = item["display_name"]
                                 tags[category][displayname] = item
         return tags
 
-
     def read_openprinttag_material_types(self) -> dict:
         materialtypes = {}
         mt_filename = os.path.join(script_path, "data", "material_temps.yaml")
         if not os.path.exists(mt_filename):
-            self.show_message_box(title="Error", message=f"Couldn't find material temp database at {mt_filename}",
+            self.show_message_box(title=self.tr("Error"),
+                                  message=self.tr(f"Couldn't find material temp database at {mt_filename}"),
                                   icon=QMessageBox.Icon.Critical)
         default_filamenttypes = yaml.safe_load(open(mt_filename).read())
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_type_enum.yaml")
         if not os.path.exists(mc_filename):
-            self.show_message_box(title="Error", message=f"Couldn't find material type database at {mc_filename}",
+            self.show_message_box(title=self.tr("Error"),
+                                  message=self.tr(f"Couldn't find material type database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename).read())
         for item in mc:
@@ -691,7 +836,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.tags is not None:
             self.matpropwidget.load_tags(self.tags)
 
-    def setup_color(self, brandname:str, materialname:str, colorname:str):
+    def setup_color(self, brandname: str, materialname: str, colorname: str):
         if brandname in self.filaments and materialname in self.filaments[brandname]:
             cm = self.filaments[brandname][materialname]
             self.colornamebox.setCurrentText(colorname)
@@ -842,7 +987,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             if "material_name" in filament_dict:
                                 self.filaments[brand_name] = filament_dict["material_name"]
                     except Exception as e:
-                        print(f"YAML Error in {filename}", e)
+                        self.msg(f"YAML Error in {filename}: {str(e)}")
         for brand_name in self.filaments:
             self.brandnamebox.addItem(brand_name)
         self.brandnamebox.setStyleSheet("""
@@ -853,14 +998,16 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.brandnamebox.currentTextChanged.connect(self.on_manufacturer_changed)
         self.brandnamebox.model().sort(0, Qt.AscendingOrder)
 
-
     def parse_tag_data(self, data):
         uri = ""
         record = Record(config_file=default_config_file, data=memoryview(data))
         fields = {}
         for name, region in record.regions.items():
             unknown_fields = dict()
-            fields[name] = region.read(out_unknown_fields=unknown_fields)
+            try:
+                fields[name] = region.read(out_unknown_fields=unknown_fields)
+            except Exception as err:
+                self.msg(str(err))
         if hasattr(record, "uri"):
             uri = record.uri
         return fields, uri
@@ -872,7 +1019,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         filename = sys.argv[1]
         if os.path.exists(filename):
-            widget.load_file(filename)
+            data = open(filename, "rb").read()
+            widget.load_data(data)
         else:
             print(f"Filename {filename} doesn't exist ! Aborting ...")
             sys.exit(1)
