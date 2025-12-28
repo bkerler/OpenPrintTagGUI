@@ -44,25 +44,19 @@ class S9_GENERIC:
         else:
             self.logger(f"{os_name} is currently not supported.")
             return False
-        if self.port is None or os_name == "Linux":
-            for m_port in range(16):
-                st = -1
-                if os_name == "Linux":
-                    szNode = bytes(f"/dev/usb/hiddev{m_port}", 'utf-8')
-                    icdev = lib.fw_init_ex(2, szNode, 115200)
-                else:
-                    icdev = lib.fw_init(m_port, 115200)
+        st = -1
+        for m_port in range(16):
+            if os_name == "Linux":
+                szNode = bytes(f"/dev/usb/hiddev{m_port}", 'utf-8')
+                icdev = lib.fw_init_ex(2, szNode, 115200)
+            else:
+                icdev = lib.fw_init(100, 115200)
 
-                if icdev != -1:
-                    szVer = create_string_buffer(128)
-                    st = lib.fw_getver(icdev, szVer)
-                    if st == 0:
-                        break
-        else:
-            icdev = lib.fw_init(bytes(self.port, 'utf-8'), 115200)
             if icdev != -1:
                 szVer = create_string_buffer(128)
                 st = lib.fw_getver(icdev, szVer)
+                if st == 0:
+                    break
         if st == -1:
             return False
         if beep:

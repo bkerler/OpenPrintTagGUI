@@ -859,7 +859,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find material class database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mc = yaml.safe_load(open(mc_filename).read())
+        mc = yaml.safe_load(open(mc_filename,encoding="utf8").read())
         for item in mc:
             materialclasses[item["name"]] = item["description"]
         return materialclasses
@@ -871,14 +871,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find categories database at {mcc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mcc = yaml.safe_load(open(mcc_filename).read())
+        mcc = yaml.safe_load(open(mcc_filename,encoding="utf8").read())
 
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find tags database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mc = yaml.safe_load(open(mc_filename).read())
+        mc = yaml.safe_load(open(mc_filename,encoding="utf8").read())
         for citem in mcc:
             if "display_name" in citem and "name" in citem:
                 category = citem["display_name"]
