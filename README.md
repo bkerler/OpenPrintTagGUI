@@ -38,17 +38,21 @@ python openprinttag_gui.py yourtag.bin
 ## Currently supported
 - Read/Write binary blobs that can be written using ProxMark3 cli
 
-- Read/Write directly to tag using proxmark3 NFC Writer
-
+- Read/Write directly to tag using proxmark3 NFC Writer (~360 EUR)
+  [Europe store](https://lab401.com/de-de/collections/rfid-tools/products/proxmark-3-rdv4)
+  [USA store](https://hackerwarehouse.com/product/proxmark3-rdv4-kit)
+  
   ![PM3-rdv4.01.png](PM3-rdv4.01.png)
 
-- Read/Write directly to tag using YiQing/Fongwah S9
-
+- Read/Write directly to tag using YiQing/Fongwah S9 (~70 EUR)
+  [Amazon store](https://www.amazon.de/dp/B0DLWNYHXD)
+  
   ![fongwah_s9.jpg](fongwah_s9.jpg)
 
 ## ToDo
 - Add more default filament data and colors
-- Read/Write directly to tag using ACR1552U readers
+- Read/Write directly to tag using ACR1552U readers (~50 EUR)
+  [Amazon store](https://www.amazon.de/dp/B0CNY5G8T3)
 
 ## Add custom filament to default settings
 - Custom filaments are stored in "data/filaments" in its own file in yaml-Format:
