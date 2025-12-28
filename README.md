@@ -36,11 +36,15 @@ python openprinttag_gui.py yourtag.bin
 ```
 
 ## Currently supported
-- Read/write binary blobs that can be written using ProxMark3 cli
+- Read/Write binary blobs that can be written using ProxMark3 cli
+
 - Read/Write directly to tag using proxmark3 NFC Writer
-![PM3-rdv4.01.png](PM3-rdv4.01.png)
+
+  ![PM3-rdv4.01.png](PM3-rdv4.01.png)
+
 - Read/Write directly to tag using YiQing/Fongwah S9
-![fongwah_s9.jpg](fongwah_s9.jpg)
+
+  ![fongwah_s9.jpg](fongwah_s9.jpg)
 
 ## ToDo
 - Add more default filament data and colors
