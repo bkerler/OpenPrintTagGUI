@@ -35,51 +35,60 @@ class DeviceDetector(QObject):
     A QObject that polls for a specific USB serial device (by VID/PID)
     and emits a signal when it is detected.
     """
-    device_detected = Signal(str)  # Emits the port name when detected
-    device_removed = Signal()  # Optional: emitted when device disappears
+    device_detected = Signal(dict)  # Emits the port name when detected
+    device_removed = Signal(dict)  # Optional: emitted when device disappears
 
-    def __init__(self, target_vid: int, target_pid: int, poll_interval_ms: int = 1000):
+    def __init__(self, device_list: list, poll_interval_ms: int = 1000):
         """
-        :param target_vid: Vendor ID in decimal (e.g., 0x2341 for Arduino)
-        :param target_pid: Product ID in decimal
+        :param device_list: Contains usb vid, pid, name and reader param
         :param poll_interval_ms: How often to scan for the device (default 1 second)
         """
         super().__init__()
-        self.target_vid = target_vid
-        self.target_pid = target_pid
+        self.device_list = device_list
         self.poll_interval = poll_interval_ms
-
-        self.current_port = None
 
         # QTimer for polling
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_device)
         self.timer.start(self.poll_interval)
+        self.reader_state = []
 
     @Slot()
     def check_device(self):
         """Scan all ports and check for matching VID/PID."""
-        found_port = None
-        for port in serial.tools.list_ports.comports():
-            if port.vid == self.target_vid and port.pid == self.target_pid:
-                found_port = port.device
-                break
+        curstate = []
+        for device in self.device_list:
+            if "vid" in device and "pid" in device:
+                target_vid = device["vid"]
+                target_pid = device["pid"]
+                for port in serial.tools.list_ports.comports():
+                    if port.vid == target_vid and port.pid == target_pid:
+                        device["port"] = port.device
+                        curstate.append(device)
+                        break
 
-        for device_info in hid.enumerate(0, 0):
-            if "vendor_id" in device_info and "product_id" in device_info:
-                if self.target_vid == device_info["vendor_id"] and self.target_pid == device_info["product_id"]:
-                    if "path" in device_info:
-                        found_port = device_info["path"].decode('utf-8')
-                    break
+                for device_info in hid.enumerate(0, 0):
+                    if target_vid == device_info["vendor_id"] and target_pid == device_info["product_id"]:
+                        if "path" in device_info:
+                            device["port"] = device_info["path"].decode('utf-8')
+                            curstate.append(device)
+                        break
 
-        if found_port and found_port != self.current_port:
-            # Device just appeared
-            self.current_port = found_port
-            self.device_detected.emit(found_port)
-        elif not found_port and self.current_port is not None:
-            # Device was removed
-            self.current_port = None
-            self.device_removed.emit()
+        for device in curstate:
+            if device not in self.reader_state:
+                # Device just appeared
+                self.reader_state.append(device)
+                if "reader" in device:
+                    reader = device["reader"]
+                    if reader not in self.reader_state:
+                        self.device_detected.emit(device)
+        for device in self.reader_state:
+            if device not in curstate:
+                # Device was removed
+                if "reader" in device:
+                    self.reader_state.remove(device)
+                    device["port"] = None
+                    self.device_removed.emit(device)
 
     def stop(self):
         """Stop the polling timer (call on application shutdown if needed)."""
@@ -263,6 +272,7 @@ class DatePickerPopup(QDialog):
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.readers = {}
         self.port = None
         self.reader = None
         self.threadpool = QThreadPool()
@@ -303,62 +313,73 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.writetagbtn.setDisabled(True)
         self.td1sbutton.setDisabled(True)
 
-        # Proxmark 3
-        self.pm3_detector = DeviceDetector(target_vid=0x9ac4, target_pid=0x4b8f, poll_interval_ms=1000)
-        self.pm3_detector.device_detected.connect(self.on_pm3_detected)
-        self.pm3_detector.device_removed.connect(self.on_pm3_removed)
+        device_list = [
+            {"vid": 0x9ac4, "pid": 0x4b8f, "reader": 1, "name": "proxmark3"},
+            {"vid": 0x0471, "pid": 0xa112, "reader": 2, "name": "s9"},
+            {"vid": 0x072F, "pid": 0x2303, "reader": 3, "name": "acr1552u-m1"},
+            {"vid": 0x072F, "pid": 0x2308, "reader": 3, "name": "acr1552u-m2"},
+            {"vid": 0xe4b2, "pid": 0x0045, "reader": -1, "name": "td1s"},
+        ]
 
-        # S9
-        self.s9_detector = DeviceDetector(target_vid=0x0471, target_pid=0xa112, poll_interval_ms=1000)
-        self.s9_detector.device_detected.connect(self.on_s9_detected)
-        self.s9_detector.device_removed.connect(self.on_s9_removed)
-
-        # TD1S
-        self.td1s_detector = DeviceDetector(target_vid=0xe4b2, target_pid=0x0045, poll_interval_ms=1000)
-        self.td1s_detector.device_detected.connect(self.on_td1s_detected)
-        self.td1s_detector.device_removed.connect(self.on_td1s_removed)
-        self.td1sbutton.clicked.connect(self.readtd1s)
+        # NFC Reader support
+        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=1000)
+        self.device_detector.device_detected.connect(self.on_device_detected)
+        self.device_detector.device_removed.connect(self.on_device_removed)
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
         self.colornamebox.setCurrentIndex(0)
 
-    def on_td1s_detected(self):
-        self.msg("TD1S detected.")
-        self.td1sbutton.setDisabled(False)
-
     def on_td1s_removed(self):
         self.msg("TD1S removed.")
         self.td1sbutton.setDisabled(True)
 
-    def on_pm3_detected(self, port: str):
-        self.msg("Proxmark3 detected.")
-        self.reader = 1
-        self.port = port
-        self.readtagbtn.setDisabled(False)
-        self.writetagbtn.setDisabled(False)
+    def on_device_detected(self, info: dict):
+        if "name" in info:
+            name = info["name"]
+            self.msg(f"{name} detected.")
+        if "reader" in info:
+            reader = info["reader"]
+            if reader in self.readers:
+                self.readers[reader] += 1
+            else:
+                self.readers[reader] = 1
+            if reader == -1:
+                if not self.td1sbutton.isEnabled():
+                    self.td1sbutton.setDisabled(False)
+            elif reader > 0:
+                self.reader = reader
+                if "port" in info:
+                    self.port = info["port"]
+                if not self.readtagbtn.isEnabled():
+                    self.readtagbtn.setDisabled(False)
+                if not self.writetagbtn.isEnabled():
+                    self.writetagbtn.setDisabled(False)
 
-    def on_pm3_removed(self):
-        self.msg("Proxmark3 removed.")
-        self.reader = 0
-        self.port = None
-        self.readtagbtn.setDisabled(True)
-        self.writetagbtn.setDisabled(True)
-
-    def on_s9_detected(self, port: str):
-        self.msg("S9 detected.")
-        self.reader = 2
-        self.port = port
-        self.readtagbtn.setDisabled(False)
-        self.writetagbtn.setDisabled(False)
-
-    def on_s9_removed(self):
-        self.msg("S9 removed.")
-        self.reader = 0
-        self.port = None
-        self.readtagbtn.setDisabled(True)
-        self.writetagbtn.setDisabled(True)
+    def on_device_removed(self, info: dict):
+        if "name" in info:
+            name = info["name"]
+            self.msg(f"{name} removed.")
+        if "reader" in info:
+            reader = info["reader"]
+            if reader == -1:
+                if self.td1sbutton.isEnabled():
+                    self.td1sbutton.setDisabled(True)
+            elif reader > 0:
+                if reader in self.readers:
+                    self.readers[reader] -= 1
+            enabled = False
+            for reader in self.readers:
+                if self.readers[reader] > 0:
+                    enabled = True
+            if not enabled:
+                self.reader = 0
+                self.port = None
+                if self.readtagbtn.isEnabled():
+                    self.readtagbtn.setDisabled(True)
+                if self.writetagbtn.isEnabled():
+                    self.writetagbtn.setDisabled(True)
 
     def msg(self, text, value: int = 0):
         self.statusbar.showMessage(self.tr(text), value)
@@ -859,7 +880,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find material class database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mc = yaml.safe_load(open(mc_filename,encoding="utf8").read())
+        mc = yaml.safe_load(open(mc_filename, encoding="utf8").read())
         for item in mc:
             materialclasses[item["name"]] = item["description"]
         return materialclasses
@@ -871,14 +892,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find categories database at {mcc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mcc = yaml.safe_load(open(mcc_filename,encoding="utf8").read())
+        mcc = yaml.safe_load(open(mcc_filename, encoding="utf8").read())
 
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find tags database at {mc_filename}"),
                                   icon=QMessageBox.Icon.Critical)
-        mc = yaml.safe_load(open(mc_filename,encoding="utf8").read())
+        mc = yaml.safe_load(open(mc_filename, encoding="utf8").read())
         for citem in mcc:
             if "display_name" in citem and "name" in citem:
                 category = citem["display_name"]
