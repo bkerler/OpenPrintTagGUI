@@ -14,9 +14,9 @@ author_email = "info@revskills.de"
 
 [tool.briefcase.app.openprinttaggui]
 formal_name = "Open Print Tag GUI"
-description = "Graphical tool for reading/writing Open Print Tag NFC data"
 icon = "openprinttaggui/openprinttag_gui"
-desktop = "openprinttaggui/openprinttag_gui.desktop"
+installer_icon = "openprinttaggui/openprinttag_gui"
+description = "Graphical tool for reading/writing Open Print Tag NFC data"
 sources = ["openprinttaggui"]
 requires = []
 
