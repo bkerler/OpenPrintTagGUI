@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=openprinttag_gui
+Exec=openprinttag_gui.py %F
+Comment=GUI for reading/writing openprinttag.org nfc tags
+Icon=openprinttag_gui
+Categories=Utility;Science;
+MimeType=application/x-openprinttag-bin;
+Terminal=false

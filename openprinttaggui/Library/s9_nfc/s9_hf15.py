@@ -2,9 +2,9 @@
 # (c) B.Kerler 2025
 import ctypes
 from ctypes import create_string_buffer
-from Library.iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, \
+from openprinttaggui.Library.iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, \
     ISO15693_ATQB_LENGTH
-from Library.s9_nfc.s9_generic import S9_GENERIC
+from openprinttaggui.Library.s9_nfc.s9_generic import S9_GENERIC
 
 
 class S9_HF15(S9_GENERIC):

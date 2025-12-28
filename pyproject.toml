@@ -1,6 +1,34 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling","briefcase"]
 build-backend = "hatchling.build"
+
+[tool.briefcase]
+project_name = "OpenPrintTagGUI"
+bundle = "de.revskills.openprinttaggui"
+version = "1.0.1"
+url = "https://github.com/bkerler/OpenPrintTagGUI"
+license.file = "LICENSE"
+description = "GUI for the Open Print Tag standard"
+author = "bkerler"
+author_email = "info@revskills.de"
+
+[tool.briefcase.app.openprinttaggui]
+formal_name = "Open Print Tag GUI"
+description = "Graphical tool for reading/writing Open Print Tag NFC data"
+icon = "openprinttaggui/openprinttag_gui"
+desktop = "openprinttaggui/openprinttag_gui.desktop"
+sources = ["openprinttaggui"]
+requires = []
+
+[tool.briefcase.app.openprinttaggui.linux]
+system_requires = []
+
+[tool.briefcase.app.openprinttaggui.linux.appimage]
+manylinux = "manylinux_2_28"
+system_requires = [
+    "libxkbcommon-x11-*",
+    "libxcb-*"
+]
 
 [project]
 name = "openprinttag_gui"
@@ -44,12 +72,12 @@ openprinttag_gui = "openprinttag_gui:main"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "data/*.json",
-    "data/filaments/*.json",
+    "openprinttaggui/data/*.yaml",
+    "openprinttaggui/data/filaments/*.yaml",
     "examples/*.bin"
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
-"openprinttag_gui.py" = "openprinttag_gui.py"
+"openprinttag_gui.py" = "openprinttaggui/openprinttag_gui.py"
 "LICENSE" = "LICENSE"
 "README.md" = "README.md"

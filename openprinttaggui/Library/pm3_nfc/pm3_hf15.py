@@ -5,7 +5,7 @@ from io import BytesIO
 import crcmod
 from enum import Enum
 
-from Library.pm3_nfc.pm3_generic import Proxmark3Handler, PM3CMD, Packet
+from openprinttaggui.Library.pm3_nfc.pm3_generic import Proxmark3Handler, PM3CMD, Packet
 from ..iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, ISO15693_ATQB_LENGTH
 
 class ISO15_COMMAND(Enum):
