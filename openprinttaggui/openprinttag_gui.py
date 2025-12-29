@@ -55,24 +55,30 @@ class DeviceDetector(QObject):
 
     @Slot()
     def check_device(self):
-        """Scan all ports and check for matching VID/PID."""
-        curstate = []
-        for device in self.device_list:
-            if "vid" in device and "pid" in device:
-                target_vid = device["vid"]
-                target_pid = device["pid"]
-                for port in serial.tools.list_ports.comports():
-                    if port.vid == target_vid and port.pid == target_pid:
-                        device["port"] = port.device
-                        curstate.append(device)
-                        break
-
-                for device_info in hid.enumerate(0, 0):
-                    if target_vid == device_info["vendor_id"] and target_pid == device_info["product_id"]:
-                        if "path" in device_info:
-                            device["port"] = device_info["path"].decode('utf-8')
-                            curstate.append(device)
-                        break
+        curstate = set()
+        for dev_template in self.device_list:
+            found = False
+            target_vid = dev_template["vid"]
+            target_pid = dev_template["pid"]
+            # Serial check
+            for port in serial.tools.list_ports.comports():
+                if port.vid == target_vid and port.pid == target_pid:
+                    new_dev = dev_template.copy()
+                    new_dev["port"] = port.device
+                    new_dev["type"] = "serial"
+                    curstate.add(tuple(sorted(new_dev.items())))  # Use tuple for hashing
+                    found = True
+                    break
+            if found:
+                continue
+            # HID check
+            for device_info in hid.enumerate(0, 0):
+                if target_vid == device_info["vendor_id"] and target_pid == device_info["product_id"]:
+                    new_dev = dev_template.copy()
+                    new_dev["port"] = device_info["path"].decode('utf-8')
+                    new_dev["type"] = "hid"
+                    curstate.add(tuple(sorted(new_dev.items())))
+                    break
 
         for device in curstate:
             if device not in self.reader_state:
@@ -322,7 +328,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         ]
 
         # NFC Reader support
-        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=1000)
+        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=2000)
         self.device_detector.device_detected.connect(self.on_device_detected)
         self.device_detector.device_removed.connect(self.on_device_removed)
 
