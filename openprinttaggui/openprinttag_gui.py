@@ -84,17 +84,19 @@ class DeviceDetector(QObject):
             if device not in self.reader_state:
                 # Device just appeared
                 self.reader_state.append(device)
-                if "reader" in device:
-                    reader = device["reader"]
+                device_dict = dict(device)
+                if "reader" in device_dict:
+                    reader = device_dict["reader"]
                     if reader not in self.reader_state:
-                        self.device_detected.emit(device)
+                        self.device_detected.emit(device_dict)
         for device in self.reader_state:
             if device not in curstate:
+                device_dict = dict(device)
                 # Device was removed
-                if "reader" in device:
+                if "reader" in device_dict:
                     self.reader_state.remove(device)
-                    device["port"] = None
-                    self.device_removed.emit(device)
+                    device_dict["port"] = None
+                    self.device_removed.emit(device_dict)
 
     def stop(self):
         """Stop the polling timer (call on application shutdown if needed)."""
