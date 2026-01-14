@@ -13,6 +13,7 @@ from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
 
+from openprinttaggui.Library.acs_nfc.acs_hf15 import ACS_HF15
 from openprinttaggui.Library.s9_nfc.s9_hf15 import S9_HF15
 
 script_path = os.path.dirname(os.path.realpath(__file__))
@@ -144,6 +145,12 @@ class NFC_WriteTagWorker(QRunnable):
                 if dev.getUID() == b"":
                     self.signals.error.emit(f"Couldn't detect nfc tag.")
                     return
+            elif self.reader == 3:
+                self.signals.status.emit("Connecting to ACS...")
+                dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
+                if dev.getUID() == b"":
+                    self.signals.error.emit(f"Couldn't detect nfc tag.")
+                    return
             else:
                 self.signals.error.emit(f"Unknown nfc reader: {str(self.reader)}")
                 return
@@ -179,6 +186,12 @@ class NFC_ReadTagWorker(QRunnable):
             elif self.reader == 2:
                 self.signals.status.emit("Connecting to S9...")
                 dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
+                if dev.getUID() == b"":
+                    self.signals.error.emit(f"Couldn't detect nfc tag.")
+                    return
+            elif self.reader == 3:
+                self.signals.status.emit("Connecting to ACS...")
+                dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
                 if dev.getUID() == b"":
                     self.signals.error.emit(f"Couldn't detect nfc tag.")
                     return
@@ -1186,7 +1199,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    info = "OpenPrintTagGUI v1.01 (c) B.Kerler"
+    info = "OpenPrintTagGUI v1.02 (c) B.Kerler"
     app.setApplicationName(info)
     widget = GUI_OpenPrintTag()
     widget.setWindowTitle(info)

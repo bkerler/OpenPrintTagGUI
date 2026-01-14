@@ -68,7 +68,7 @@ class S9_HF15(S9_GENERIC):
         if progress:
             progress(100)
         if filename is not None:
-            open(filename, "wb").write(data)
+            tag.save(filename=filename)
         return tag
 
     def restore(self, data_or_filename, fast: bool = False, blocksize: int = 4, progress=None):

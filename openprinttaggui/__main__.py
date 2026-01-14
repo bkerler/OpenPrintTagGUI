@@ -6,7 +6,7 @@ from openprinttaggui.openprinttag_gui import GUI_OpenPrintTag
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    info = "OpenPrintTagGUI v1.01 (c) B.Kerler"
+    info = "OpenPrintTagGUI v1.02 (c) B.Kerler"
     app.setApplicationName(info)
     widget = GUI_OpenPrintTag()
     widget.setWindowTitle(info)
