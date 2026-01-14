@@ -1,6 +1,7 @@
 brand_name: "Tinmorry"
 material_name:
   "PETG-CF":
+    country_of_origin: "CN"
     empty_container_weight: 184
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

@@ -1,6 +1,7 @@
 brand_name: "Smart Materials 3D"
 material_name:
   "Smartfil Wood":
+    country_of_origin: "ES"
     empty_container_weight: 230
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

@@ -1,7 +1,7 @@
 brand_name: "Sunlu"
-country_of_origin: "HK"
 material_name:
   "ABS":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -12,6 +12,7 @@ material_name:
     min_print_temperature: 250
     max_print_temperature: 260
   "ASA":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -22,6 +23,7 @@ material_name:
     min_print_temperature: 255
     max_print_temperature: 265
   "Easy ABS":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -32,6 +34,7 @@ material_name:
     min_print_temperature: 225
     max_print_temperature: 235
   "Easy PA":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -42,6 +45,7 @@ material_name:
     min_print_temperature: 255
     max_print_temperature: 265
   "PETG":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -52,6 +56,7 @@ material_name:
     min_print_temperature: 230
     max_print_temperature: 240
   "PLA":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -62,6 +67,7 @@ material_name:
     min_print_temperature: 200
     max_print_temperature: 210
   "PLA+":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -72,6 +78,7 @@ material_name:
     min_print_temperature: 205
     max_print_temperature: 215
   "PLA Marble":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -87,6 +94,7 @@ material_name:
           - abrasive
           - contains_marble
   "PLA WOOD":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -102,6 +110,7 @@ material_name:
           - abrasive
           - contains_wood
   "PLA Carbon Fiber":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -117,6 +126,7 @@ material_name:
           - abrasive
           - contains_carbon_fiber
   "Matte PLA":
+    country_of_origin: "HK"
     empty_container_weight: 132
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

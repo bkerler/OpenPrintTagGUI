@@ -1,6 +1,7 @@
 brand_name: "Kimya"
 material_name:
   "PETG Carbon":
+    country_of_origin: "FR"
     empty_container_weight: 236
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -16,6 +17,7 @@ material_name:
           - abrasive
           - contains_carbon
   "ABS Carbon":
+    country_of_origin: "FR"
     empty_container_weight: 236
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

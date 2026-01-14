@@ -1,7 +1,7 @@
 brand_name: "Geetech"
-country_of_origin: "CN"
 material_name:
   "PLA":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -12,6 +12,7 @@ material_name:
     min_print_temperature: 185
     max_print_temperature: 210
   "Matte PLA":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -26,6 +27,7 @@ material_name:
         tags:
           - Matte
   "Silk PLA":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -40,6 +42,7 @@ material_name:
         tags:
           - Silk
   "Glow PLA":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -55,6 +58,7 @@ material_name:
           - abrasive
           - Glow in the Dark
   "ABS":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -65,6 +69,7 @@ material_name:
     min_print_temperature: 230
     max_print_temperature: 240
   "PETG":
+    country_of_origin: "CN"
     empty_container_weight: 195
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

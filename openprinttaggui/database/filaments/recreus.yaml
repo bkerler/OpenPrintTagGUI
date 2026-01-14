@@ -1,7 +1,7 @@
 brand_name: "Recreus"
-country_of_origin: "ES"
 material_name:
   "Filaflex 60A":
+    country_of_origin: "ES"
     empty_container_weight: 196
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500
@@ -19,6 +19,7 @@ material_name:
       Nude:
         primary_color: "#f6c8b4"
   "Filaflex 70A":
+    country_of_origin: "ES"
     empty_container_weight: 196
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500
@@ -40,6 +41,7 @@ material_name:
       Nude:
         primary_color: "#f6c8b4"
   "Filaflex 82A":
+    country_of_origin: "ES"
     empty_container_weight: 196
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500
@@ -61,6 +63,7 @@ material_name:
       Nude:
         primary_color: "#f6c8b4"
   "Filaflex 95A":
+    country_of_origin: "ES"
     empty_container_weight: 196
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500

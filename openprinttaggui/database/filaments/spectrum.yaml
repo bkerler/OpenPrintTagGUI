@@ -1,6 +1,7 @@
 brand_name: "Spectrum"
 material_name:
   "PET-G Matt":
+    country_of_origin: "PL"
     empty_container_weight: 260
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -52,6 +53,7 @@ material_name:
         tags:
           - Matte
   "PET-G HT100":
+    country_of_origin: "PL"
     empty_container_weight: 260
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -77,6 +79,7 @@ material_name:
       Clear:
         primary_color: "#E4E7E5"
   "GreenyHT":
+    country_of_origin: "PL"
     empty_container_weight: 260
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000

@@ -1,7 +1,7 @@
 brand_name: "Polymaker"
-country_of_origin: "NL"
 material_name:
   "PolyMax PC":
+    country_of_origin: "NL"
     empty_container_weight: 245
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -12,6 +12,7 @@ material_name:
     min_print_temperature: 250
     max_print_temperature: 270
   "PolyMax PLA":
+    country_of_origin: "NL"
     empty_container_weight: 245
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -22,6 +23,7 @@ material_name:
     min_print_temperature: 190
     max_print_temperature: 230
   "PolyTerra PLA":
+    country_of_origin: "NL"
     empty_container_weight: 245
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -32,6 +34,7 @@ material_name:
     min_print_temperature: 190
     max_print_temperature: 230
   "PolyLite ABS":
+    country_of_origin: "NL"
     empty_container_weight: 245
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
