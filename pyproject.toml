@@ -18,7 +18,7 @@ icon = "openprinttaggui/openprinttag_gui"
 installer_icon = "openprinttaggui/openprinttag_gui"
 description = "Graphical tool for reading/writing Open Print Tag NFC data"
 sources = ["openprinttaggui"]
-requires = []
+requires = [ "pyside6" ]
 
 [tool.briefcase.app.openprinttaggui.linux]
 system_requires = []
@@ -27,7 +27,8 @@ system_requires = []
 manylinux = "manylinux_2_28"
 system_requires = [
     "libxkbcommon-x11-*",
-    "libxcb-*"
+    "libxcb-*",
+    "pcsc-lite-devel"
 ]
 
 [project]
