@@ -4,6 +4,7 @@ from smartcard.CardType import AnyCardType
 from smartcard.CardRequest import CardRequest
 from smartcard.Exceptions import CardRequestTimeoutException
 from smartcard.util import toHexString
+from smartcard.ATR import ATR
 import os, sys
 import platform
 
@@ -65,6 +66,38 @@ class ACS:
         self.cardservice.connection.connect()
         atr = self.cardservice.connection.getATR()
         logger("ATR detected: "+toHexString(atr))
+        hb = toHexString(ATR(atr).getHistoricalBytes())
+        cardname = hb[-17:-12]
+        cardnameMap = {
+            "00 01": "MIFARE Classic 1K",
+            "00 02": "MIFARE Classic 4K",
+            "00 03": "MIFARE Ultralight",
+            "00 14": "iCode Slix ISO15693",
+            "00 21": "NTAG203",
+            "00 22": "NTAG213",
+            "00 23": "NTAG215",
+            "00 24": "NTAG216",
+            "00 25": "iCode Slix",
+            "00 26": "MIFARE Mini",
+            "F0 04": "Topaz and Jewel",
+            "F0 11": "FeliCa 212K",
+            "F0 12": "FeliCa 424K",
+            "F0 27": "MIFARE DesFire EV2",
+            "F0 20": "iCode Slix2",
+            "F0 30": "ISO14443A4",
+            "F0 40": "ISO14443A7",
+            "F0 50": "ISO14443A10",
+            "F0 60": "ISO14443B4",
+            "F0 70": "ISO14443B7",
+
+        }
+        name = cardnameMap.get(cardname, "unknown")
+        logger("Card Name: " + name)
+        logger("T0 supported: ", ATR(atr).isT0Supported())
+        logger("T1 supported: ", ATR(atr).isT1Supported())
+        logger("T15 suppoerted: ", ATR(atr).isT15Supported())
+
+
 
     def hex(self, byte_array):
         return toHexString(list(byte_array))

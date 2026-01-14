@@ -60,6 +60,16 @@ class ACS_HF15(ACS):
     def end_transparent(self):
         return self.manage_session([0x82, 0x00])==0x9000
 
+    def getUID(self):
+        res=self.get_system_info()
+        if "uid" in res:
+            self.uid=res["uid"]
+        else:
+            self.uid=b""
+        if self.uid != b"":
+            self.logger(f'UID detected: {bytearray(self.uid).hex()}')
+        return self.uid
+
     def get_system_info(self):
         self.start_transparent()
         self.select_iso15693()
@@ -77,16 +87,6 @@ class ACS_HF15(ACS):
                 ic_ref = resp[13:15]
                 return dict(uid=uid,dsfid=dsfid,afi=afi,memory=memory, ic_ref=ic_ref)
         return dict()
-
-    def getUID(self):
-        res=self.get_system_info()
-        if "uid" in res:
-            self.uid=res["uid"]
-        else:
-            self.uid=b""
-        if self.uid != b"":
-            self.logger(f'UID detected: {bytearray(self.uid).hex()}')
-        return self.uid
 
     def read_block(self, address, length: int = 0):
         mode = ReadMode.ISO15693
