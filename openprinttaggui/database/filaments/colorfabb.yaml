@@ -1,4 +1,5 @@
 brand_name: "ColorFabb"
+country_of_origin: "NL"
 material_name:
   "bronzeFill":
     empty_container_weight: 236

@@ -1,4 +1,5 @@
 brand_name: "Geetech"
+country_of_origin: "CN"
 material_name:
   "PLA":
     empty_container_weight: 195

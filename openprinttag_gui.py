@@ -14,7 +14,7 @@ if __name__ == "__main__":
         filename = sys.argv[1]
         if os.path.exists(filename):
             data = open(filename, "rb").read()
-            widget.load_data(data)
+            widget.load_tag_data(data)
         else:
             print(f"Filename {filename} doesn't exist ! Aborting ...")
             sys.exit(1)

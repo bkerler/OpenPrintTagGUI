@@ -30,6 +30,15 @@ from Library.pm3_nfc.pm3_hf15 import PM3_HF15
 from Library.td1s import collect_data
 import serial.tools.list_ports
 
+device_list = [
+    {"vid": 0x9ac4, "pid": 0x4b8f, "reader": 1, "name": "proxmark3"},
+    {"vid": 0x0471, "pid": 0xa112, "reader": 2, "name": "s9"},
+    {"vid": 0x072F, "pid": 0x2303, "reader": 3, "name": "acr1552u-m1"},
+    {"vid": 0x072F, "pid": 0x2308, "reader": 3, "name": "acr1552u-m2"},
+    {"vid": 0xe4b2, "pid": 0x0045, "reader": -1, "name": "td1s"},
+]
+
+
 class DeviceDetectorWorker(QObject):
     device_detected = Signal(dict)
     device_removed = Signal(dict)
@@ -45,7 +54,7 @@ class DeviceDetectorWorker(QObject):
     def stop(self):
         self.is_running = False
 
-    def run(self):
+    def do_work(self):
         while self.is_running:
             current_state = set()
 
@@ -274,6 +283,7 @@ class DatePickerPopup(QDialog):
         self.accept()
 
 
+
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -318,32 +328,70 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.writetagbtn.setDisabled(True)
         self.td1sbutton.setDisabled(True)
 
-        device_list = [
-            {"vid": 0x9ac4, "pid": 0x4b8f, "reader": 1, "name": "proxmark3"},
-            {"vid": 0x0471, "pid": 0xa112, "reader": 2, "name": "s9"},
-            {"vid": 0x072F, "pid": 0x2303, "reader": 3, "name": "acr1552u-m1"},
-            {"vid": 0x072F, "pid": 0x2308, "reader": 3, "name": "acr1552u-m2"},
-            {"vid": 0xe4b2, "pid": 0x0045, "reader": -1, "name": "td1s"},
-        ]
+        IS_PYCHARM_DEBUG = 'PYCHARM_HOSTED' in os.environ
 
-        # NFC Reader support
-        self.detector_thread = QThread()
-        self.detector_worker = DeviceDetectorWorker(device_list=device_list, poll_interval_ms=1000)
-        self.detector_worker.moveToThread(self.detector_thread)
-        self.detector_thread.started.connect(self.detector_worker.run)
-        # Connect signals
-        self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
-        self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
-        # Clean up
-        self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
-        self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
-        self.detector_thread.start()  # <--- start once
+        if IS_PYCHARM_DEBUG:
+            self.previous_state = set()
+            # During debug → do simple polling in main thread (slow but works)
+            self.debug_timer = QTimer(self)
+            self.debug_timer.timeout.connect(self.slow_check_devices)  # ← we'll define this
+            self.debug_timer.start(3000)  # slower = less freezing
+        else:
+            # NFC Reader support
+            self.detector_thread = QThread()
+            self.detector_worker = DeviceDetectorWorker(device_list=device_list, poll_interval_ms=1000)
+            self.detector_worker.moveToThread(self.detector_thread)
+            self.detector_thread.started.connect(self.detector_worker.do_work)
+            # Connect signals
+            self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
+            self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
+            # Clean up
+            self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
+            self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
+            self.detector_thread.start()
 
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
         self.colornamebox.setCurrentIndex(0)
+
+    def slow_check_devices(self):
+        """Fallback polling when running under debugger"""
+        try:
+            # Copy-paste or call the same logic you have in worker.run()
+            current_state = set()
+
+            for dev_tpl in device_list:  # make sure you have self.device_list
+                # serial check
+                for port in serial.tools.list_ports.comports():
+                    if port.vid == dev_tpl["vid"] and port.pid == dev_tpl["pid"]:
+                        d = dev_tpl.copy()
+                        d["port"] = port.device
+                        d["type"] = "serial"
+                        current_state.add(tuple(sorted(d.items())))
+
+                # hid check
+                for info in hid.enumerate(0, 0):
+                    if info["vendor_id"] == dev_tpl["vid"] and info["product_id"] == dev_tpl["pid"]:
+                        d = dev_tpl.copy()
+                        d["port"] = info["path"].decode(errors='replace')
+                        d["type"] = "hid"
+                        current_state.add(tuple(sorted(d.items())))
+
+            # Then do the added/removed detection logic (same as in worker)
+            for dev_tuple in current_state - self.previous_state:  # you need self.previous_state = set()
+                self.on_device_detected(dict(dev_tuple))
+
+            for dev_tuple in self.previous_state - current_state:
+                d = dict(dev_tuple)
+                d["port"] = None
+                self.on_device_removed(d)
+
+            self.previous_state = current_state.copy()
+
+        except Exception as e:
+            print("Debug polling error:", e)
 
     def on_td1s_removed(self):
         self.msg("TD1S removed.")
@@ -419,7 +467,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def handle_tag_read_success(self, tag):
         try:
-            self.load_data(tag.data)
+            self.load_tag_data(tag.data)
             self.msg("Tag read and parsed successfully.")
         except Exception as e:
             self.msg(f"Error on parsing nfc tag: {str(e)}")
@@ -524,13 +572,17 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         update_data["main"] = dict(
             material_class=self.materialclassbox.currentText().split(" ")[0],
             material_type=self.materialtypebox.currentText().split(" ")[0],
-            material_name=self.materialnamebox.currentText() + " " + self.colornamebox.currentText(),
-            brand_name=self.brandnamebox.currentText(),
+            material_name=(self.materialnamebox.currentText() + " " + self.colornamebox.currentText())[:31],
+            brand_name=self.brandnamebox.currentText()[:31],
             manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
             nominal_netto_full_weight=self.nominalweightbox.value(),
             actual_netto_full_weight=self.actualweightbox.value(),
             empty_container_weight=self.emptycontainerbox.value()
         )
+        if self.materialabbredit.text() != "":
+            update_data["main"]["material_abbrevation"] = self.materialabbredit.text()[:7],
+        if self.countryoforiginedit.text() != "":
+            update_data["main"]["country_of_origin"] = self.countryoforiginedit.text()[:2],
         if self.gtinedit.text() != "":
             update_data["main"]["gtin"] = int(self.gtinedit.text())
         if self.expdateedit.text() != "00.00.00":
@@ -612,7 +664,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             self.matpropwidget.set_property_checked(property_name=subprop, checked=True)
                         dq.append(subprop)
 
-    def load_data(self, data):
+    def load_tag_data(self, data):
         self.matpropwidget.uncheck()
         self.matpropwidget.filter_check.setChecked(False)
         fields, uri = self.parse_tag_data(data)
@@ -635,8 +687,10 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.brandnamebox.setCurrentText(main["brand_name"])
             if "material_name" in main:
                 self.materialnamebox.setCurrentText(main["material_name"])
-            elif "material_abbreviation" in main:
+            if "material_abbreviation" in main:
                 self.materialnamebox.setCurrentText(main["material_abbreviation"])
+            if "country_of_origin" in main:
+                self.countryoforiginedit.setText(main["country_of_origin"])
             if "gtin" in main:
                 self.gtinedit.setText(str(main["gtin"]))
             if "material_class" in main:
@@ -660,6 +714,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                         self.materialtypebox.setCurrentText(cur_material_type)
                 else:
                     self.materialtypebox.setCurrentText(cur_material_type)
+            if "material_abbreviation" in main:
+                materialabbr = main["material_abbreviation"][:7]
+                self.materialabbredit.setText(materialabbr)
             if "manufactured_date" in main:
                 timestamp = main["manufactured_date"]
                 dt = QDateTime()
@@ -752,7 +809,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if filename != "" and os.path.exists(filename):
             data = open(filename, "rb").read()
             try:
-                self.load_data(data)
+                self.load_tag_data(data)
             except Exception as e:
                 self.msg(f"Error on parsing nfc tag: {str(e)}")
 
@@ -924,7 +981,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def read_openprinttag_material_types(self) -> dict:
         materialtypes = {}
-        mt_filename = os.path.join(script_path, "data", "material_temps.yaml")
+        mt_filename = os.path.join(script_path, "database", "material_temps.yaml")
         if not os.path.exists(mt_filename):
             self.show_message_box(title=self.tr("Error"),
                                   message=self.tr(f"Couldn't find material temp database at {mt_filename}"),
@@ -1045,6 +1102,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if materialname in self.filaments[brandname]:
                 self.materialnamebox.setCurrentText(materialname)
                 cm = self.filaments[brandname][materialname]
+                if "material_abbrevation" in cm:
+                    material_abbrevation = cm["material_abbrevation"]
+                    self.materialabbredit.setText(material_abbrevation)
+                if "country_of_origin" in cm:
+                    country_of_origin = cm["country_of_origin"]
+                    self.countryoforiginedit.setText(country_of_origin)
                 if "material_type" in cm:
                     materialtype = cm["material_type"]
                     cf = self.default_filamenttypes.get(materialtype)
@@ -1145,7 +1208,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def add_filaments(self):
         self.filaments = {}
-        for (root, dirs, files) in os.walk(os.path.join(script_path, "data", "filaments"), topdown=True):
+        for (root, dirs, files) in os.walk(os.path.join(script_path, "database", "filaments"), topdown=True):
             for file in files:
                 filename = os.path.join(root, file)
                 if ".yaml" == filename[-5:]:
@@ -1192,7 +1255,7 @@ if __name__ == "__main__":
         filename = sys.argv[1]
         if os.path.exists(filename):
             data = open(filename, "rb").read()
-            widget.load_data(data)
+            widget.load_tag_data(data)
         else:
             print(f"Filename {filename} doesn't exist ! Aborting ...")
             sys.exit(1)

@@ -1,4 +1,5 @@
 brand_name: "Polymaker"
+country_of_origin: "NL"
 material_name:
   "PolyMax PC":
     empty_container_weight: 245

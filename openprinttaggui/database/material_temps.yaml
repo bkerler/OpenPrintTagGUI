@@ -244,3 +244,9 @@ OBC:
   preheat_temp: 100
   bed_min_temp: 60
   bed_max_temp: 100
+EVA:
+  min_temp: 220
+  max_temp: 250
+  preheat_temp: 160
+  bed_min_temp: 20
+  bed_max_temp: 40

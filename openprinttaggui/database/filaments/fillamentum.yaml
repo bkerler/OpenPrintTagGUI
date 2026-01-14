@@ -1,4 +1,5 @@
 brand_name: "Fillamentum"
+country_of_origin: "CZ"
 material_name:
   "Timberfill":
     empty_container_weight: 230

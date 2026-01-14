@@ -1,6 +1,7 @@
 brand_name: "Prusament"
 material_name:
   "ASA":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 850
     actual_netto_full_weight: 850
@@ -45,6 +46,7 @@ material_name:
         uri: "https://www.prusa3d.com/product/prusament-asa-prusa-pro-green-800g-nfc/"
 
   "PC Blend":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 970
     actual_netto_full_weight: 970
@@ -77,6 +79,7 @@ material_name:
         uri: "https://www.prusa3d.com/product/prusament-pc-blend-prusa-pro-green/"
 
   "PA11 Carbon Fiber":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 800
     actual_netto_full_weight: 800
@@ -96,6 +99,7 @@ material_name:
           - contains_carbon_fiber
 
   "PEI 1010":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500
@@ -112,6 +116,7 @@ material_name:
         uri: "https://www.prusa3d.com/product/prusament-pei-1010-natural-500-g/"
 
   "PC Blend Carbon Fiber":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 800
     actual_netto_full_weight: 800
@@ -131,6 +136,7 @@ material_name:
           - contains_carbon_fiber
 
   "PC Blend Space Grade":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 850
     actual_netto_full_weight: 850
@@ -150,6 +156,7 @@ material_name:
           - contains_carbon_fiber
 
   "PP Glass Fiber":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 850
     actual_netto_full_weight: 850
@@ -169,6 +176,7 @@ material_name:
           - contains_glass_fiber
 
   "PETG V0":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -185,6 +193,7 @@ material_name:
         uri: null
 
   "PLA":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -285,6 +294,7 @@ material_name:
         uri: null
 
   "rPLA":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -313,6 +323,7 @@ material_name:
         uri: "https://www.prusa3d.com/en/product/prusament-rpla-wine-pigment-1kg/"
 
   "Woodfill":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -346,6 +357,7 @@ material_name:
           - contains_wood
 
   "PETG":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -461,6 +473,7 @@ material_name:
           - contains_carbon_fiber
 
   "PETG Tungsten 75%":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 1000
     actual_netto_full_weight: 1000
@@ -480,6 +493,7 @@ material_name:
           - contains_tungsten
 
   "TPU 95A":
+    country_of_origin: "CZ"
     empty_container_weight: 193
     nominal_netto_full_weight: 500
     actual_netto_full_weight: 500
