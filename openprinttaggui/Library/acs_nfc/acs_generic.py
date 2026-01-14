@@ -72,7 +72,7 @@ class ACS:
             "00 01": "MIFARE Classic 1K",
             "00 02": "MIFARE Classic 4K",
             "00 03": "MIFARE Ultralight",
-            "00 14": "iCode Slix ISO15693",
+            "00 14": "IC SL2 ICS2602 ( SLIX2 )",
             "00 21": "NTAG203",
             "00 22": "NTAG213",
             "00 23": "NTAG215",
