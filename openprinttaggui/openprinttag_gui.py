@@ -30,79 +30,63 @@ from Library.pm3_nfc.pm3_hf15 import PM3_HF15
 from Library.td1s import collect_data
 import serial.tools.list_ports
 
+class DeviceDetectorWorker(QObject):
+    device_detected = Signal(dict)
+    device_removed = Signal(dict)
+    finished = Signal()   # optional
 
-class DeviceDetector(QObject):
-    """
-    A QObject that polls for a specific USB serial device (by VID/PID)
-    and emits a signal when it is detected.
-    """
-    device_detected = Signal(dict)  # Emits the port name when detected
-    device_removed = Signal(dict)  # Optional: emitted when device disappears
-
-    def __init__(self, device_list: list, poll_interval_ms: int = 1000):
-        """
-        :param device_list: Contains usb vid, pid, name and reader param
-        :param poll_interval_ms: How often to scan for the device (default 1 second)
-        """
+    def __init__(self, device_list, poll_interval_ms=1500):
         super().__init__()
         self.device_list = device_list
         self.poll_interval = poll_interval_ms
-
-        # QTimer for polling
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.check_device)
-        self.timer.start(self.poll_interval)
-        self.reader_state = []
-
-    @Slot()
-    def check_device(self):
-        curstate = set()
-        for dev_template in self.device_list:
-            found = False
-            target_vid = dev_template["vid"]
-            target_pid = dev_template["pid"]
-            # Serial check
-            for port in serial.tools.list_ports.comports():
-                if port.vid == target_vid and port.pid == target_pid:
-                    new_dev = dev_template.copy()
-                    new_dev["port"] = port.device
-                    new_dev["type"] = "serial"
-                    curstate.add(tuple(sorted(new_dev.items())))  # Use tuple for hashing
-                    found = True
-                    break
-            if found:
-                continue
-            # HID check
-            for device_info in hid.enumerate(0, 0):
-                if target_vid == device_info["vendor_id"] and target_pid == device_info["product_id"]:
-                    new_dev = dev_template.copy()
-                    new_dev["port"] = device_info["path"].decode('utf-8')
-                    new_dev["type"] = "hid"
-                    curstate.add(tuple(sorted(new_dev.items())))
-                    break
-
-        for device in curstate:
-            if device not in self.reader_state:
-                # Device just appeared
-                self.reader_state.append(device)
-                device_dict = dict(device)
-                if "reader" in device_dict:
-                    reader = device_dict["reader"]
-                    if reader not in self.reader_state:
-                        self.device_detected.emit(device_dict)
-        for device in self.reader_state:
-            if device not in curstate:
-                device_dict = dict(device)
-                # Device was removed
-                if "reader" in device_dict:
-                    self.reader_state.remove(device)
-                    device_dict["port"] = None
-                    self.device_removed.emit(device_dict)
+        self.is_running = True
+        self.previous_state = set()
 
     def stop(self):
-        """Stop the polling timer (call on application shutdown if needed)."""
-        self.timer.stop()
+        self.is_running = False
 
+    def run(self):
+        while self.is_running:
+            current_state = set()
+
+            for dev_tpl in self.device_list:
+                # --- Serial check ---
+                try:
+                    for port in serial.tools.list_ports.comports():
+                        if port.vid == dev_tpl["vid"] and port.pid == dev_tpl["pid"]:
+                            d = dev_tpl.copy()
+                            d["port"] = port.device
+                            d["type"] = "serial"
+                            current_state.add(tuple(sorted(d.items())))
+                except Exception:
+                    pass  # very important - never let exception kill thread
+
+                # --- HID check ---
+                try:
+                    for info in hid.enumerate(0, 0):
+                        if info["vendor_id"] == dev_tpl["vid"] and info["product_id"] == dev_tpl["pid"]:
+                            d = dev_tpl.copy()
+                            d["port"] = info["path"].decode(errors='replace')
+                            d["type"] = "hid"
+                            current_state.add(tuple(sorted(d.items())))
+                except Exception:
+                    pass
+
+            # Detect added / removed
+            for dev_tuple in current_state - self.previous_state:
+                self.device_detected.emit(dict(dev_tuple))
+
+            for dev_tuple in self.previous_state - current_state:
+                d = dict(dev_tuple)
+                d["port"] = None
+                self.device_removed.emit(d)
+
+            self.previous_state = current_state.copy()
+
+            # Sleep – do NOT use QTimer here
+            QThread.msleep(self.poll_interval)
+
+        self.finished.emit()
 
 # Worker signals
 class TD1S_WorkerSignals(QObject):
@@ -343,9 +327,18 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         ]
 
         # NFC Reader support
-        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=5000)
-        self.device_detector.device_detected.connect(self.on_device_detected)
-        self.device_detector.device_removed.connect(self.on_device_removed)
+        self.detector_thread = QThread()
+        self.detector_worker = DeviceDetectorWorker(device_list=device_list, poll_interval_ms=1000)
+        self.detector_worker.moveToThread(self.detector_thread)
+        self.detector_thread.started.connect(self.detector_worker.run)
+        # Connect signals
+        self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
+        self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
+        # Clean up
+        self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
+        self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
+        self.detector_thread.start()  # <--- start once
+
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
