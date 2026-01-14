@@ -54,7 +54,8 @@ class DeviceDetectorWorker(QObject):
     def stop(self):
         self.is_running = False
 
-    def do_work(self):
+    @Slot()
+    def start_detection(self):
         while self.is_running:
             current_state = set()
 
@@ -328,70 +329,24 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.writetagbtn.setDisabled(True)
         self.td1sbutton.setDisabled(True)
 
-        IS_PYCHARM_DEBUG = 'PYCHARM_HOSTED' in os.environ
-
-        if IS_PYCHARM_DEBUG:
-            self.previous_state = set()
-            # During debug → do simple polling in main thread (slow but works)
-            self.debug_timer = QTimer(self)
-            self.debug_timer.timeout.connect(self.slow_check_devices)  # ← we'll define this
-            self.debug_timer.start(3000)  # slower = less freezing
-        else:
-            # NFC Reader support
-            self.detector_thread = QThread()
-            self.detector_worker = DeviceDetectorWorker(device_list=device_list, poll_interval_ms=1000)
-            self.detector_worker.moveToThread(self.detector_thread)
-            self.detector_thread.started.connect(self.detector_worker.do_work)
-            # Connect signals
-            self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
-            self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
-            # Clean up
-            self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
-            self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
-            self.detector_thread.start()
+        # NFC Reader support
+        self.detector_thread = QThread()
+        self.detector_worker = DeviceDetectorWorker(device_list=device_list, poll_interval_ms=1000)
+        self.detector_worker.moveToThread(self.detector_thread)
+        self.detector_thread.started.connect(self.detector_worker.start_detection)
+        # Connect signals
+        self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
+        self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
+        # Clean up
+        self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
+        self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
+        self.detector_thread.start()
 
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
         self.colornamebox.setCurrentIndex(0)
-
-    def slow_check_devices(self):
-        """Fallback polling when running under debugger"""
-        try:
-            # Copy-paste or call the same logic you have in worker.run()
-            current_state = set()
-
-            for dev_tpl in device_list:  # make sure you have self.device_list
-                # serial check
-                for port in serial.tools.list_ports.comports():
-                    if port.vid == dev_tpl["vid"] and port.pid == dev_tpl["pid"]:
-                        d = dev_tpl.copy()
-                        d["port"] = port.device
-                        d["type"] = "serial"
-                        current_state.add(tuple(sorted(d.items())))
-
-                # hid check
-                for info in hid.enumerate(0, 0):
-                    if info["vendor_id"] == dev_tpl["vid"] and info["product_id"] == dev_tpl["pid"]:
-                        d = dev_tpl.copy()
-                        d["port"] = info["path"].decode(errors='replace')
-                        d["type"] = "hid"
-                        current_state.add(tuple(sorted(d.items())))
-
-            # Then do the added/removed detection logic (same as in worker)
-            for dev_tuple in current_state - self.previous_state:  # you need self.previous_state = set()
-                self.on_device_detected(dict(dev_tuple))
-
-            for dev_tuple in self.previous_state - current_state:
-                d = dict(dev_tuple)
-                d["port"] = None
-                self.on_device_removed(d)
-
-            self.previous_state = current_state.copy()
-
-        except Exception as e:
-            print("Debug polling error:", e)
 
     def on_td1s_removed(self):
         self.msg("TD1S removed.")
