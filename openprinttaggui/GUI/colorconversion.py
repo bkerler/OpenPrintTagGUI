@@ -122,7 +122,7 @@ def ral_to_hex(ral_code: str) -> str:
         str: '#RRGGBB'
     """
     rgb = _ral_to_rgb(ral_code)
-    return _rgb_to_hex(rgb)
+    return _rgb_to_hex(rgb).lower()
 
 
 def hex_to_ral(hex_color: str, return_distance: bool = False) -> Tuple[str, Optional[float]]:

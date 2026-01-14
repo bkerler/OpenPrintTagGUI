@@ -132,7 +132,7 @@ class NFC_WriteTagWorker(QRunnable):
         try:
             tagdata = self.parent.generate_tag_data()
         except Exception as e:
-            self.signals.error.emit(f"Failed to generate tag data: {str(e)}")
+            self.signals.error.emit(f"Failed to generate tag data: {str(e.__notes__)}")
             return
 
         try:
@@ -343,7 +343,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         ]
 
         # NFC Reader support
-        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=2000)
+        self.device_detector = DeviceDetector(device_list=device_list, poll_interval_ms=5000)
         self.device_detector.device_detected.connect(self.on_device_detected)
         self.device_detector.device_removed.connect(self.on_device_removed)
 
@@ -531,7 +531,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         update_data["main"] = dict(
             material_class=self.materialclassbox.currentText().split(" ")[0],
             material_type=self.materialtypebox.currentText().split(" ")[0],
-            material_name=self.materialnamebox.currentText(),
+            material_name=self.materialnamebox.currentText() + " " + self.colornamebox.currentText(),
             brand_name=self.brandnamebox.currentText(),
             manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
             nominal_netto_full_weight=self.nominalweightbox.value(),
@@ -543,23 +543,17 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.expdateedit.text() != "00.00.00":
             update_data["main"]["expiration_date"] = self.locale_to_timestamp(self.dateedit.text())
         if self.primarycoloredit.text() != "":
-            update_data["main"]["primary_color"] = {}
-            update_data["main"]["primary_color"]["hex"] = self.primarycoloredit.text().replace("#", "")
+            update_data["main"]["primary_color"] = self.primarycoloredit.text()
         if self.secondarycolor0edit_0.text() != "":
-            update_data["main"]["secondary_color_0"] = {}
-            update_data["main"]["secondary_color_0"]["hex"] = self.secondarycolor0edit_0.text().replace("#", "")
+            update_data["main"]["secondary_color_0"] = self.secondarycolor0edit_0.text()
         if self.secondarycolor0edit_1.text() != "":
-            update_data["main"]["secondary_color_1"] = {}
-            update_data["main"]["secondary_color_1"]["hex"] = self.secondarycolor0edit_1.text().replace("#", "")
+            update_data["main"]["secondary_color_1"] = self.secondarycolor0edit_1.text()
         if self.secondarycolor0edit_2.text() != "":
-            update_data["main"]["secondary_color_2"] = {}
-            update_data["main"]["secondary_color_2"]["hex"] = self.secondarycolor0edit_2.text().replace("#", "")
+            update_data["main"]["secondary_color_2"] = self.secondarycolor0edit_2.text()
         if self.secondarycolor0edit_3.text() != "":
-            update_data["main"]["secondary_color_3"] = {}
-            update_data["main"]["secondary_color_3"]["hex"] = self.secondarycolor0edit_3.text().replace("#", "")
+            update_data["main"]["secondary_color_3"] = self.secondarycolor0edit_3.text()
         if self.secondarycolor0edit_4.text() != "":
-            update_data["main"]["secondary_color_4"] = {}
-            update_data["main"]["secondary_color_4"]["hex"] = self.secondarycolor0edit_4.text().replace("#", "")
+            update_data["main"]["secondary_color_4"] = self.secondarycolor0edit_4.text()
         if self.transmissiondistanceedit.text() != "":
             update_data["main"]["transmission_distance"] = float(self.transmissiondistanceedit.text())
         if self.densityedit.text != "":
@@ -705,13 +699,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.expdateedit.setText(QLocale().toString(dt.date(), QLocale.ShortFormat))
             if "primary_color" in main:
                 self.colornamebox.clear()
-                if "hex" in main["primary_color"]:
-                    self.primarycoloredit.setText('#' + main["primary_color"]["hex"])
-                    self.update_color_label("#" + main["primary_color"]["hex"], self.colorlabel)
+                self.primarycoloredit.setText(main["primary_color"])
+                self.update_color_label(main["primary_color"], self.colorlabel)
             for i in range(5):
                 if f"secondary_color_{i}" in main:
-                    if "hex" in main[f"secondary_color_{i}"]:
-                        secondarycolor = '#' + main[f"secondary_color_{i}"]["hex"]
+                        secondarycolor = main[f"secondary_color_{i}"]
                         if i == 0:
                             self.secondarycolor0edit_0.setText(secondarycolor)
                             self.update_color_label(secondarycolor, self.secondarycolor0edit_0)
@@ -1030,7 +1022,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if color_props is None:
                 return
             if "primary_color" in color_props:
-                color = color_props["primary_color"]
+                color = color_props["primary_color"].lower()
                 if "RAL" in color:
                     self.primarycolorraledit.setText(color)
                     color = ral_to_hex(color)

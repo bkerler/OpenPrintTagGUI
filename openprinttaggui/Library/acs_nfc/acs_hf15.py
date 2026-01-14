@@ -192,8 +192,6 @@ class ACS_HF15(ACS):
                                               data=tag.data[
                                                   blocknum * tag.bytesPerPage:(blocknum * tag.bytesPerPage) +
                                                                               tag.bytesPerPage])
-            if not result:
-                return False
             if lock!=0x0:
                 if lock!=0xF and self.logger:
                     self.logger(f"Error on writing block {blocknum}")
