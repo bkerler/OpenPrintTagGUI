@@ -4,7 +4,7 @@ pip3 install briefcase
 rm -rf build/
 rm -rf dist/
 rm -rf logs/
-briefcase create linux appimage
-briefcase build linux appimage
-briefcase package linux appimage
+briefcase create linux flatpak
+briefcase build linux flatpak
+briefcase package linux flatpak
 

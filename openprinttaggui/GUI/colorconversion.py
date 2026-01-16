@@ -86,7 +86,7 @@ ral_database = {
 
 def _hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
     """Convert #RRGGBB or RRGGBB to (R, G, B)"""
-    hex_color = hex_color.lstrip('#')
+    hex_color = hex_color.lstrip('#')[:6]
     if len(hex_color) != 6:
         raise ValueError("Hex color must be 6 characters long.")
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
@@ -94,7 +94,7 @@ def _hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
 
 def _rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
     """Convert (R, G, B) to #RRGGBB"""
-    return '#{:02X}{:02X}{:02X}'.format(*rgb)
+    return '#ff{:02x}{:02x}{:02x}'.format(*rgb)
 
 
 def _ral_to_rgb(ral_code: str) -> Tuple[int, int, int]:

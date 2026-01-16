@@ -1,5 +1,6 @@
 from enum import Enum
 
+import smartcard
 from smartcard.CardType import AnyCardType
 from smartcard.CardRequest import CardRequest
 from smartcard.Exceptions import CardRequestTimeoutException
@@ -58,11 +59,10 @@ class ACS:
         cardtype = AnyCardType()
         cardrequest = CardRequest(timeout=1, cardType=cardtype)
         try:
-            self.pcsccardrequest = cardrequest.waitforcard()
+            self.cardservice = cardrequest.waitforcard()
         except CardRequestTimeoutException:
             logger("Timeout waiting for nfc tag")
             return
-        self.cardservice = cardrequest.waitforcard()
         self.cardservice.connection.connect()
         atr = self.cardservice.connection.getATR()
         logger("ATR detected: "+toHexString(atr))

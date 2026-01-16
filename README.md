@@ -11,25 +11,40 @@ See specs [here](https://specs.openprinttag.org)
 - [uv](https://docs.astral.sh/uv/)
 
 ## Installation
+- install pcsc requirements (Ubuntu)
+```shell
+sudo apt-get install -y pcsc-tools pcscd libpcsclite1
+```
+
+- install pcsc requirements (Fedora)
+```shell
+sudo dnf install pcsc-lite
+```
+
+- install pcsc requirements (Centos)
+```shell
+yum install pcsc-lite
+```
+
 - using python virtual env
- ```shell
- git clone https://github.com/bkerler/OpenPrintTagGUI --recursive
- cd OpenPrintTagGUI
- python -m venv .venv
- source .venv/bin/activate
- pip3 install -r requirements.txt
- ```
+```shell
+git clone https://github.com/bkerler/OpenPrintTagGUI --recursive
+cd OpenPrintTagGUI
+python -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+```
 
 - using [uv](https://docs.astral.sh/uv/)
- ```shell
- uv sync --frozen
- source .venv/bin/activate
- ```
+```shell
+uv sync --frozen
+source .venv/bin/activate
+```
 
 ## Usage
- ```shell
- python openprinttag_gui.py
- ```
+```shell
+python openprinttag_gui.py
+```
 or opening your tag binary directly
 ```shell
 python openprinttag_gui.py yourtag.bin

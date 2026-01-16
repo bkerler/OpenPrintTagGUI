@@ -13,9 +13,6 @@ from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
 
-from openprinttaggui.Library.acs_nfc.acs_hf15 import ACS_HF15
-from openprinttaggui.Library.s9_nfc.s9_hf15 import S9_HF15
-
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.dirname(script_path))
 sys.path.insert(1, script_path)
@@ -28,6 +25,8 @@ from Library.OpenPrintTag.utils.common import default_config_file
 from Library.OpenPrintTag.utils.nfc_initialize import nfc_initialize, Args
 from Library.pm3_nfc.pm3_hf15 import PM3_HF15
 from Library.td1s import collect_data
+from Library.acs_nfc.acs_hf15 import ACS_HF15
+from Library.s9_nfc.s9_hf15 import S9_HF15
 import serial.tools.list_ports
 
 device_list = [
@@ -324,7 +323,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         # Setup nfc reader detection
         self.readtagbtn.clicked.connect(self.on_read_tag)
         self.writetagbtn.clicked.connect(self.on_write_tag)
-
+        self.td1sbutton.clicked.connect(self.on_readtd1s)
         self.readtagbtn.setDisabled(True)
         self.writetagbtn.setDisabled(True)
         self.td1sbutton.setDisabled(True)
@@ -462,8 +461,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             self.msg("TD1S TD: Please try again, no color detected. Insert filament after button click", 0)
         else:
             self.msg(f"TD1S TD: {td}\nColor: #{color}", 2000)
-            self.update_color_label("#" + color, self.colorlabel)
-            self.primarycoloredit.setText("#" + color)
+            alpha = "%02x" % (int(((100-float(td))/100)*255)&0xFF)
+            self.update_color_label("#" + alpha + color, self.colorlabel)
+            self.primarycoloredit.setText("#" + alpha + color)
             self.transmissiondistanceedit.setText(td)
 
     def on_td1s_error(self, exc):
@@ -472,7 +472,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def on_td1s_thread_done(self):
         self.td1sbutton.setEnabled(True)
 
-    def readtd1s(self):
+    def on_readtd1s(self):
         if self.td1sthread and self.td1sthread.isRunning():
             return  # Already running
 
@@ -535,9 +535,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             empty_container_weight=self.emptycontainerbox.value()
         )
         if self.materialabbredit.text() != "":
-            update_data["main"]["material_abbrevation"] = self.materialabbredit.text()[:7],
+            update_data["main"]["material_abbrevation"] = self.materialabbredit.text()[:7]
         if self.countryoforiginedit.text() != "":
-            update_data["main"]["country_of_origin"] = self.countryoforiginedit.text()[:2],
+            update_data["main"]["country_of_origin"] = self.countryoforiginedit.text()[:2]
         if self.gtinedit.text() != "":
             update_data["main"]["gtin"] = int(self.gtinedit.text())
         if self.expdateedit.text() != "00.00.00":
@@ -793,7 +793,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         )
 
         if color.isValid():
-            hex_color = color.name(QColor.HexRgb)
+            hex_color = color.name(QColor.HexArgb)
 
             self.primarycoloredit.setText(hex_color)
             self.primarycolorraledit.setText(hex_to_ral(hex_color))
@@ -998,12 +998,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.colornamebox.currentTextChanged.connect(self.on_colorname_changed)
 
     def reset_colors(self):
-        self.update_color_label("#000000", self.colorlabel)
-        self.update_color_label("#000000", self.secondary_colorlabel_0)
-        self.update_color_label("#000000", self.secondary_colorlabel_1)
-        self.update_color_label("#000000", self.secondary_colorlabel_2)
-        self.update_color_label("#000000", self.secondary_colorlabel_3)
-        self.update_color_label("#000000", self.secondary_colorlabel_4)
+        self.update_color_label("#FF000000", self.colorlabel)
+        self.update_color_label("#FF000000", self.secondary_colorlabel_0)
+        self.update_color_label("#FF000000", self.secondary_colorlabel_1)
+        self.update_color_label("#FF000000", self.secondary_colorlabel_2)
+        self.update_color_label("#FF000000", self.secondary_colorlabel_3)
+        self.update_color_label("#FF000000", self.secondary_colorlabel_4)
         self.primarycoloredit.setText("")
         self.primarycolorraledit.setText("")
         self.secondarycolor0edit_0.setText("")
@@ -1027,13 +1027,13 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if color_props is None:
                 return
             if "primary_color" in color_props:
-                color = color_props["primary_color"].lower()
+                color = color_props["primary_color"]
                 if "RAL" in color:
-                    self.primarycolorraledit.setText(color)
+                    self.primarycolorraledit.setText(color.lower())
                     color = ral_to_hex(color)
                 else:
                     self.primarycolorraledit.setText(hex_to_ral(color))
-                self.primarycoloredit.setText(color)
+                self.primarycoloredit.setText(color.lower())
                 self.update_color_label(color, self.colorlabel)
             if "transmission_distance" in color_props:
                 transmission_distance = color_props["transmission_distance"]
@@ -1199,8 +1199,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             uri = record.uri
         return fields, uri
 
-
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     info = "OpenPrintTagGUI v1.02 (c) B.Kerler"
     app.setApplicationName(info)
@@ -1216,3 +1215,6 @@ if __name__ == "__main__":
             sys.exit(1)
     widget.show()
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()

@@ -5,31 +5,155 @@ build-backend = "hatchling.build"
 [tool.briefcase]
 project_name = "OpenPrintTagGUI"
 bundle = "de.revskills.openprinttaggui"
-version = "1.0.1"
+version = "1.0.2"
 url = "https://github.com/bkerler/OpenPrintTagGUI"
 license.file = "LICENSE"
 description = "GUI for the Open Print Tag standard"
 author = "bkerler"
 author_email = "info@revskills.de"
+requires-python = ">= 3.10"
 
 [tool.briefcase.app.openprinttaggui]
 formal_name = "Open Print Tag GUI"
 icon = "openprinttaggui/openprinttag_gui"
 installer_icon = "openprinttaggui/openprinttag_gui"
 description = "Graphical tool for reading/writing Open Print Tag NFC data"
-sources = ["openprinttaggui"]
-requires = [ "pyside6" ]
+sources = [
+    "openprinttaggui",
+    "openprinttaggui/GUI"
+]
+test_sources = [
+    "tests",
+]
+requires = [
+    "PySide6-Essentials~=6.8",
+    # "PySide6-Addons~=6.8",
+    "pyserial",
+    "crcmod",
+    "ndeflib~=0.3.3",
+    "pyyaml~=6.0",
+    "ndeflib~=0.3.3",
+    "cbor2~=5.7.1",
+    "jinja2~=3.1.5",
+    "numpy~=2.2.3",
+    "simple_parsing~=0.1.7",
+    "referencing~=0.37.0",
+    "jsonschema~=4.25.1",
+    "hidapi",
+    "Cython",
+    "pyscard"
+]
+test_requires = [
+    "pytest",
+]
+
+[tool.briefcase.app.openprinttaggui.macOS]
+universal_build = true
+# As of Pyside 6.8, PySide enforces a macOS 12 minimum on wheels.
+min_os_version = "12.0"
+requires = [
+    "std-nslog~=1.0.3",
+]
 
 [tool.briefcase.app.openprinttaggui.linux]
-system_requires = []
+system_requires = [
+ "libpcsclite-dev"
+]
+
+[tool.briefcase.app.openprinttaggui.linux.system.debian]
+system_requires = [
+ "libpcsclite-dev"
+]
+
+system_runtime_requires = [
+    # Derived from https://doc.qt.io/qt-6/linux-requirements.html
+    "libxext6",
+    "libxrender1",
+    "libx11-xcb1",
+    "libxkbcommon-x11-0",
+    "libxcb-image0",
+    "libxcb-cursor0",
+    "libxcb-shape0",
+    "libxcb-randr0",
+    "libxcb-xfixes0",
+    "libxcb-sync1",
+    "libxcb-icccm4",
+    "libxcb-keysyms1",
+    "libfontconfig1",
+    "libsm6",
+    "libice6",
+    "libglib2.0-0",
+    "libgl1",
+    "libegl1",
+    "libdbus-1-3",
+]
+
+[tool.briefcase.app.openprinttaggui.linux.system.rhel]
+system_requires = [
+]
+
+system_runtime_requires = [
+    "qt6-qtbase-gui",
+]
+
+[tool.briefcase.app.openprinttaggui.linux.system.suse]
+system_requires = [
+]
+
+system_runtime_requires = [
+    "libgthread-2_0-0",
+    "libQt6Gui6",
+]
+
+[tool.briefcase.app.openprinttaggui.linux.system.arch]
+system_requires = [
+]
+
+system_runtime_requires = [
+    "qt6-base",
+]
+
 
 [tool.briefcase.app.openprinttaggui.linux.appimage]
 manylinux = "manylinux_2_28"
 system_requires = [
-    "libxkbcommon-x11-*",
-    "libxcb-*",
-    "pcsc-lite-devel"
+    "pcsc-lite-devel",
+    "libusbx-devel",
+    "libudev-devel"
 ]
+
+linuxdeploy_plugins = [
+]
+
+[tool.briefcase.app.openprinttaggui.linux.flatpak]
+flatpak_runtime = "org.kde.Platform"
+flatpak_runtime_version = "6.9"
+flatpak_sdk = "org.kde.Sdk"
+finish_arg."socket=pcsc" = true
+finish_arg."device=all" = true
+modules_extra_content = """
+  - name: pcsc-lite
+    buildsystem: simple
+    sources:
+      - type: archive
+        url: https://pcsclite.apdu.fr/files/pcsc-lite-2.0.3.tar.bz2
+        sha256: f42ee9efa489e9ff5d328baefa26f9c515be65021856e78d99ad1f0ead9ec85d
+    build-commands:
+      - ./configure --prefix=/app --disable-static --enable-shared --disable-polkit
+      - make -j$(nproc)
+      - make install
+"""
+
+# Mobile deployments
+[tool.briefcase.app.openprinttaggui.iOS]
+supported = false
+
+[tool.briefcase.app.openprinttaggui.android]
+supported = false
+
+# Web deployments
+[tool.briefcase.app.openprinttaggui.web]
+supported = false
 
 [project]
 name = "openprinttag_gui"
@@ -39,7 +163,7 @@ maintainers = [
 ]
 readme = "README.md"
 license = {file = "LICENSE"}
-version = "1.0.1"
+version = "1.0.2"
 requires-python = ">= 3.10"
 dependencies = [
 "pyside6",
@@ -75,8 +199,8 @@ openprinttag_gui = "openprinttag_gui:main"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "openprinttaggui/data/*.yaml",
-    "openprinttaggui/data/filaments/*.yaml",
+    "openprinttaggui/database/*.yaml",
+    "openprinttaggui/database/filaments/*.yaml",
     "examples/*.bin"
 ]
 
