@@ -14,7 +14,7 @@ author_email = "info@revskills.de"
 requires-python = ">= 3.10"
 
 [tool.briefcase.app.openprinttaggui]
-formal_name = "Open Print Tag GUI"
+formal_name = "OpenPrintTag GUI"
 icon = "openprinttaggui/openprinttag_gui"
 installer_icon = "openprinttaggui/openprinttag_gui"
 description = "Graphical tool for reading/writing Open Print Tag NFC data"
