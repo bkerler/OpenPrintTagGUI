@@ -29,7 +29,6 @@ requires = [
     "PySide6-Essentials~=6.8",
     # "PySide6-Addons~=6.8",
     "pyserial",
-    "crcmod",
     "ndeflib~=0.3.3",
     "pyyaml~=6.0",
     "ndeflib~=0.3.3",
@@ -168,7 +167,6 @@ requires-python = ">= 3.10"
 dependencies = [
 "pyside6",
 "pyserial",
-"crcmod",
 "ndeflib~=0.3.3",
 "pyyaml~=6.0",
 "ndeflib~=0.3.3",

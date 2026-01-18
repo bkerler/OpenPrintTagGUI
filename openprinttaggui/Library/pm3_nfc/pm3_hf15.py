@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 # (c) B.Kerler 2025
+import os
 import sys
 from io import BytesIO
-import crcmod
 from enum import Enum
 
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.dirname(script_path))
+sys.path.insert(1, script_path)
+sys.path.insert(2, os.path.join(script_path, "Library", "OpenPrintTag", "utils"))
+
 from openprinttaggui.Library.pm3_nfc.pm3_generic import Proxmark3Handler, PM3CMD, Packet
-from ..iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, ISO15693_ATQB_LENGTH
+from openprinttaggui.Library.iso15693 import ISO15_TAG_T, ISO15693_UID_LENGTH, ISO15693_TAG_MAX_PAGES, ISO15693_TAG_MAX_SIZE, ISO15693_ATQB_LENGTH
 
 class ISO15_COMMAND(Enum):
     ISO15_CONNECT = (1 << 0)
@@ -98,14 +103,29 @@ ISO15693_READ_SIGNATURE = 0xBD
 #
 ISO15693_MAGIC_WRITE = 0xE0
 
+def crc16(data: bytes) -> int:
+    """
+    crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
+    """
+    poly = 0x8408
+    crc = 0xFFFF  # Use 0x0000 if strictly following your specified initCrc=0
 
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            if crc & 0x0001:
+                crc = (crc >> 1) ^ poly
+            else:
+                crc >>= 1
+
+    return crc ^ 0xFFFF
 
 class ISO15_RAW_CMD_T:
     def __init__(self, flags: int, raw: bytes):
         self.pkt = Packet(1 + 2 + len(raw) + 2)
         self.pkt.u8(offset=0, value=flags)
         self.pkt.u16(offset=1, value=len(raw) + 2)
-        crc16 = crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
+        #crc16 = crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
         raw += int.to_bytes(crc16(raw), 2, byteorder='little')
         self.pkt[3:] = raw
 
@@ -322,6 +342,15 @@ class PM3_HF15(Proxmark3Handler):
             progress(100)
         return True
 
+"""
+def test_crc():
+    raw=b"\x11\x22\x33\x44\x55\x66\x77\x88"
+    t_crc16 = crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
+    val = t_crc16(raw)
+    val2 = crc16(raw)
+    print(hex(val))
+    print(hex(val2))
+"""
 
 if __name__ == "__main__":
     pm3 = PM3_HF15(port="/dev/ttyACM0", baudrate=115200)
