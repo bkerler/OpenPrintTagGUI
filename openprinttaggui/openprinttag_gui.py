@@ -34,7 +34,7 @@ device_list = [
     {"vid": 0x0471, "pid": 0xa112, "reader": 2, "name": "s9"},
     {"vid": 0x072F, "pid": 0x2303, "reader": 3, "name": "acr1552u-m1"},
     {"vid": 0x072F, "pid": 0x2308, "reader": 3, "name": "acr1552u-m2"},
-    {"vid": 0x0e0f, "pid": 0x0004, "reader": 3, "name": "VMWARE-cid"},
+    {"vid": 0x0e0f, "pid": 0x0003, "reader": 3, "name": "VMWARE-ccid"},
     {"vid": 0xe4b2, "pid": 0x0045, "reader": -1, "name": "td1s"},
 ]
 
