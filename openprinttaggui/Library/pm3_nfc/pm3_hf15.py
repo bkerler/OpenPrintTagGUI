@@ -146,7 +146,7 @@ class PM3_HF15(Proxmark3Handler):
         return uid, uidlen, atqb, chipid, cid
 
     def crc_x25(self, data):
-        crc16 = crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
+        #crc16 = crcmod.mkCrcFun(0x11021, initCrc=0, xorOut=0xFFFF, rev=True)
         return crc16(data)
 
     def arg_get_raw_flag(self, uidlen: int, unaddressed: bool, scan: bool, add_option: bool):

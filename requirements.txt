@@ -1,7 +1,6 @@
 pyside6
 pyserial
 simple_parsing~=0.1.7
-crcmod
 ndeflib~=0.3.3
 pyyaml~=6.0
 ndeflib~=0.3.3
