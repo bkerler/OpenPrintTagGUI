@@ -30,13 +30,13 @@ class Ui_OpenPrintTagGui(object):
     def setupUi(self, OpenPrintTagGui):
         if not OpenPrintTagGui.objectName():
             OpenPrintTagGui.setObjectName(u"OpenPrintTagGui")
-        OpenPrintTagGui.resize(730, 440)
+        OpenPrintTagGui.resize(730, 500)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(OpenPrintTagGui.sizePolicy().hasHeightForWidth())
         OpenPrintTagGui.setSizePolicy(sizePolicy)
-        OpenPrintTagGui.setMinimumSize(QSize(730, 440))
+        OpenPrintTagGui.setMinimumSize(QSize(730, 500))
         self.actionLoad = QAction(OpenPrintTagGui)
         self.actionLoad.setObjectName(u"actionLoad")
         self.actionSave = QAction(OpenPrintTagGui)
