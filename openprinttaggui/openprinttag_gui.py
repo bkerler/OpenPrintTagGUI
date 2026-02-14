@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxL
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
 
 from openprinttaggui.Library.device_detector import DeviceDetectorWorker, device_list
-from openprinttaggui.Library.nfc_handler import NFC_ReadTagWorker, NFC_WriteTagWorker
+from openprinttaggui.Library.nfc_handler import NFC_ReadTagWorker, NFC_WriteTagWorker, NFC_ReadTagDetect
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.dirname(script_path))
@@ -145,6 +145,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
         self.detector_thread.start()
 
+        # Auto-read polling
+        self.auto_read_timer = QTimer(self)
+        self.auto_read_timer.timeout.connect(self.try_auto_read_tag)
+        self.last_read_uid = None          # to avoid reading the same tag repeatedly
+        self.auto_read_enabled = False
 
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
@@ -197,8 +202,31 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     self.port = info["port"]
                 if not self.readtagbtn.isEnabled():
                     self.readtagbtn.setDisabled(False)
+                    if not self.auto_read_enabled:
+                        self.auto_read_timer.start(1000)
+                        self.auto_read_enabled = True
                 if not self.writetagbtn.isEnabled():
                     self.writetagbtn.setDisabled(False)
+
+    def on_tag_detected(self, uid):
+        if self.last_read_uid != uid:
+            self.on_read_tag()
+            self.last_read_uid = uid
+
+    def try_auto_read_tag(self):
+        if not self.auto_read_enabled:
+            return
+        if self.reader is None or self.reader <= 0:
+            return  # no reader connected
+        try:
+            worker = NFC_ReadTagDetect(reader=self.reader, port=self.port)
+
+            # Connect signals to UI updates
+            worker.signals.finished.connect(self.on_tag_detected)
+            self.threadpool.start(worker)
+
+        except Exception as e:
+            pass
 
     def on_device_removed(self, info: dict):
         if "name" in info:
@@ -221,6 +249,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.port = None
                 if self.readtagbtn.isEnabled():
                     self.readtagbtn.setDisabled(True)
+                    if self.auto_read_enabled:
+                        self.auto_read_timer.stop()
+                        self.auto_read_enabled = False
                 if self.writetagbtn.isEnabled():
                     self.writetagbtn.setDisabled(True)
 
@@ -232,6 +263,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.progressBar.update()
 
     def on_read_tag(self):
+        self.auto_read_timer.stop()
         self.progressBar.setValue(0)
         self.msg("Starting...")
 
@@ -240,11 +272,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         # Connect signals to UI updates
         worker.signals.progress.connect(self.set_progress)
         worker.signals.status.connect(self.msg)
-        worker.signals.error.connect(lambda msg: self.msg(msg))  # Reuse your existing msg method
+        worker.signals.error.connect(self.handle_tag_error)  # Reuse your existing msg method
         worker.signals.finished.connect(self.handle_tag_read_success)
-
         # Start the worker in the thread pool
         self.threadpool.start(worker)
+
+    def handle_tag_error(self, msg):
+        self.msg(str(msg))
+        self.auto_read_timer.start(1000)
 
     def handle_tag_read_success(self, tag):
         try:
@@ -255,6 +290,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         finally:
             self.set_progress(0)
             self.msg("")
+        self.auto_read_timer.start(1000)
 
     def on_write_tag(self):
         self.set_progress(0)

@@ -80,15 +80,18 @@ class S9_GENERIC:
         st = self.lib.fw_select_uid(self.icdev, 0x22, uid)  # we got chip, select it
         if st != 0:
             print("Error selecting!")
+            return b""
 
         st = self.lib.fw_reset_to_ready(self.icdev, 0x22, uid)
         if st != 0:
             print("Error resetting!")
+            return b""
         secInfo = create_string_buffer(256)
         secInfoLen = create_string_buffer(8)
         st = self.lib.fw_get_securityinfo(self.icdev, 0x22, 0x04, 0x02, uid, secInfoLen, secInfo)
         if st != 0:
             print("Error reading security info!")
+            return b""
         return uid.value
 
 

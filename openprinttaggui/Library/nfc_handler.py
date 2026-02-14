@@ -111,3 +111,32 @@ class NFC_ReadTagWorker(QRunnable):
             self.signals.finished.emit(tag)  # tag should have .data attribute
         except Exception as e:
             self.signals.error.emit(f"Error parsing NFC tag: {str(e)}")
+
+class NFC_ReadTagDetect(QRunnable):
+    def __init__(self, reader: int, port: str):
+        super().__init__()
+        self.reader = reader
+        self.signals = NFC_WorkerSignals()
+        self.port = port
+
+    @Slot()
+    def run(self):
+        try:
+            if self.reader == 1:
+                dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
+            elif self.reader == 2:
+                dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
+            elif self.reader == 3:
+                dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
+            else:
+                return
+            try:
+                uid = dev.getUID()
+            except Exception:
+                return
+            if uid and uid == b"":
+                return
+            self.signals.finished.emit(uid)
+        except Exception as e:
+            return
+

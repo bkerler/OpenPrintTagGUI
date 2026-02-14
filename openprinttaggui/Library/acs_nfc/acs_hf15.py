@@ -61,6 +61,8 @@ class ACS_HF15(ACS):
         return self.manage_session([0x82, 0x00])==0x9000
 
     def getUID(self):
+        if self.cardservice is None:
+            return None
         res=self.get_system_info()
         if "uid" in res:
             self.uid=res["uid"]
