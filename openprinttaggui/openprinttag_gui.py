@@ -155,6 +155,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
 
+        self.countryoforiginedit.textChanged.connect(self.on_country_change)
+
+
+    def on_country_change(self):
+        try:
+            self.country_to_flag(self.countryoforiginedit.text())
+        except Exception:
+            pass
+
     def cache_filenames(self):
         for (root, dirs, files) in os.walk(os.path.join(script_path, "Library", "openprinttag-database", "data", "brands"), topdown=True):
             for file in files:
