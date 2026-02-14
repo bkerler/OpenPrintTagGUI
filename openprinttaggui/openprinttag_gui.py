@@ -944,7 +944,10 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         return argb
 
     def argb_to_rgba(self, rgba:str):
-        argb = "#" + rgba[3:9] + rgba[1:3]
+        if len(rgba) > 7:
+            argb = "#" + rgba[3:9] + rgba[1:3]
+        else:
+            argb = rgba + "ff"
         return argb
 
 

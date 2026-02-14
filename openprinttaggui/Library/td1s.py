@@ -110,7 +110,7 @@ def collect_data(logger=print):
                     if len(data_str) == 6:
                         logger(data_str)
                         uid, a, b, c, rd, color = data_str
-                        return rd, color
+                        return rd, color.lower()
             except:
                 pass
         return "", ""
