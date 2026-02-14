@@ -23,39 +23,38 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QSpinBox, QStatusBar, QTabWidget, QTextEdit,
     QVBoxLayout, QWidget)
 
-from GUI.customcombobox import ClearComboBox
+from GUI.filterbox import FilterComboBox
 from GUI.property_tree import PropertyFilterWidget
 
 class Ui_OpenPrintTagGui(object):
     def setupUi(self, OpenPrintTagGui):
         if not OpenPrintTagGui.objectName():
             OpenPrintTagGui.setObjectName(u"OpenPrintTagGui")
-        OpenPrintTagGui.resize(730, 500)
+        OpenPrintTagGui.resize(801, 560)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(OpenPrintTagGui.sizePolicy().hasHeightForWidth())
         OpenPrintTagGui.setSizePolicy(sizePolicy)
-        OpenPrintTagGui.setMinimumSize(QSize(730, 500))
+        OpenPrintTagGui.setMinimumSize(QSize(801, 560))
         self.actionLoad = QAction(OpenPrintTagGui)
         self.actionLoad.setObjectName(u"actionLoad")
         self.actionSave = QAction(OpenPrintTagGui)
         self.actionSave.setObjectName(u"actionSave")
         self.centralwidget = QWidget(OpenPrintTagGui)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.gridLayout_8 = QGridLayout(self.centralwidget)
-        self.gridLayout_8.setObjectName(u"gridLayout_8")
-        self.progressBar = QProgressBar(self.centralwidget)
-        self.progressBar.setObjectName(u"progressBar")
-        self.progressBar.setValue(0)
-
-        self.gridLayout_8.addWidget(self.progressBar, 2, 0, 1, 1)
-
+        self.gridLayout = QGridLayout(self.centralwidget)
+        self.gridLayout.setObjectName(u"gridLayout")
         self.tabWidget = QTabWidget(self.centralwidget)
         self.tabWidget.setObjectName(u"tabWidget")
+        self.tabWidget.setMinimumSize(QSize(790, 450))
         self.basictab = QWidget()
         self.basictab.setObjectName(u"basictab")
-        self.verticalLayout_2 = QVBoxLayout(self.basictab)
+        self.verticalLayout_6 = QVBoxLayout(self.basictab)
+        self.verticalLayout_6.setObjectName(u"verticalLayout_6")
+        self.horizontalLayout_29 = QHBoxLayout()
+        self.horizontalLayout_29.setObjectName(u"horizontalLayout_29")
+        self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.horizontalLayout_3 = QHBoxLayout()
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
@@ -68,7 +67,7 @@ class Ui_OpenPrintTagGui(object):
 
         self.horizontalLayout_3.addItem(self.horizontalSpacer_15)
 
-        self.brandnamebox = ClearComboBox(self.basictab)
+        self.brandnamebox = FilterComboBox(self.basictab)
         self.brandnamebox.setObjectName(u"brandnamebox")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(4)
@@ -92,7 +91,7 @@ class Ui_OpenPrintTagGui(object):
 
         self.horizontalLayout_4.addItem(self.horizontalSpacer_16)
 
-        self.materialnamebox = ClearComboBox(self.basictab)
+        self.materialnamebox = FilterComboBox(self.basictab)
         self.materialnamebox.setObjectName(u"materialnamebox")
         sizePolicy1.setHeightForWidth(self.materialnamebox.sizePolicy().hasHeightForWidth())
         self.materialnamebox.setSizePolicy(sizePolicy1)
@@ -106,40 +105,45 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_22.setObjectName(u"horizontalLayout_22")
         self.materialabbrlabel = QLabel(self.basictab)
         self.materialabbrlabel.setObjectName(u"materialabbrlabel")
+        sizePolicy.setHeightForWidth(self.materialabbrlabel.sizePolicy().hasHeightForWidth())
+        self.materialabbrlabel.setSizePolicy(sizePolicy)
 
         self.horizontalLayout_22.addWidget(self.materialabbrlabel)
+
+        self.materialabbredit = QLineEdit(self.basictab)
+        self.materialabbredit.setObjectName(u"materialabbredit")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy2.setHorizontalStretch(1)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.materialabbredit.sizePolicy().hasHeightForWidth())
+        self.materialabbredit.setSizePolicy(sizePolicy2)
+        self.materialabbredit.setMaximumSize(QSize(150, 16777215))
+        self.materialabbredit.setMaxLength(16)
+
+        self.horizontalLayout_22.addWidget(self.materialabbredit)
 
         self.horizontalSpacer_24 = QSpacerItem(13, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_22.addItem(self.horizontalSpacer_24)
 
-        self.materialabbredit = QLineEdit(self.basictab)
-        self.materialabbredit.setObjectName(u"materialabbredit")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy2.setHorizontalStretch(6)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.materialabbredit.sizePolicy().hasHeightForWidth())
-        self.materialabbredit.setSizePolicy(sizePolicy2)
-        self.materialabbredit.setMaxLength(16)
-
-        self.horizontalLayout_22.addWidget(self.materialabbredit)
-
         self.label = QLabel(self.basictab)
         self.label.setObjectName(u"label")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.horizontalLayout_22.addWidget(self.label)
 
-        self.horizontalSpacer_25 = QSpacerItem(13, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        self.countryflaglabel = QLabel(self.basictab)
+        self.countryflaglabel.setObjectName(u"countryflaglabel")
+        self.countryflaglabel.setMinimumSize(QSize(20, 0))
+        self.countryflaglabel.setMaximumSize(QSize(20, 16777215))
 
-        self.horizontalLayout_22.addItem(self.horizontalSpacer_25)
+        self.horizontalLayout_22.addWidget(self.countryflaglabel)
 
         self.countryoforiginedit = QLineEdit(self.basictab)
         self.countryoforiginedit.setObjectName(u"countryoforiginedit")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy3.setHorizontalStretch(1)
-        sizePolicy3.setVerticalStretch(0)
-        sizePolicy3.setHeightForWidth(self.countryoforiginedit.sizePolicy().hasHeightForWidth())
-        self.countryoforiginedit.setSizePolicy(sizePolicy3)
+        sizePolicy2.setHeightForWidth(self.countryoforiginedit.sizePolicy().hasHeightForWidth())
+        self.countryoforiginedit.setSizePolicy(sizePolicy2)
+        self.countryoforiginedit.setMaximumSize(QSize(50, 16777215))
         self.countryoforiginedit.setMaxLength(2)
 
         self.horizontalLayout_22.addWidget(self.countryoforiginedit)
@@ -165,36 +169,29 @@ class Ui_OpenPrintTagGui(object):
 
         self.primarycoloredit = QLineEdit(self.basictab)
         self.primarycoloredit.setObjectName(u"primarycoloredit")
-        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy4.setHorizontalStretch(2)
-        sizePolicy4.setVerticalStretch(0)
-        sizePolicy4.setHeightForWidth(self.primarycoloredit.sizePolicy().hasHeightForWidth())
-        self.primarycoloredit.setSizePolicy(sizePolicy4)
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(2)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.primarycoloredit.sizePolicy().hasHeightForWidth())
+        self.primarycoloredit.setSizePolicy(sizePolicy3)
         self.primarycoloredit.setMinimumSize(QSize(90, 0))
+        self.primarycoloredit.setMaximumSize(QSize(90, 16777215))
 
         self.horizontalLayout_5.addWidget(self.primarycoloredit)
 
         self.primarycolorraledit = QLineEdit(self.basictab)
         self.primarycolorraledit.setObjectName(u"primarycolorraledit")
-        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy5.setHorizontalStretch(2)
-        sizePolicy5.setVerticalStretch(0)
-        sizePolicy5.setHeightForWidth(self.primarycolorraledit.sizePolicy().hasHeightForWidth())
-        self.primarycolorraledit.setSizePolicy(sizePolicy5)
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy4.setHorizontalStretch(2)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.primarycolorraledit.sizePolicy().hasHeightForWidth())
+        self.primarycolorraledit.setSizePolicy(sizePolicy4)
+        self.primarycolorraledit.setMinimumSize(QSize(90, 0))
+        self.primarycolorraledit.setMaximumSize(QSize(120, 16777215))
 
         self.horizontalLayout_5.addWidget(self.primarycolorraledit)
 
-        self.colornamebox = QComboBox(self.basictab)
-        self.colornamebox.setObjectName(u"colornamebox")
-        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy6.setHorizontalStretch(5)
-        sizePolicy6.setVerticalStretch(0)
-        sizePolicy6.setHeightForWidth(self.colornamebox.sizePolicy().hasHeightForWidth())
-        self.colornamebox.setSizePolicy(sizePolicy6)
-
-        self.horizontalLayout_5.addWidget(self.colornamebox)
-
-        self.horizontalSpacer_26 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_26 = QSpacerItem(200, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer_26)
 
@@ -206,94 +203,95 @@ class Ui_OpenPrintTagGui(object):
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_5)
 
-        self.horizontalLayout_20 = QHBoxLayout()
-        self.horizontalLayout_20.setObjectName(u"horizontalLayout_20")
         self.primarycolorlabel_2 = QLabel(self.basictab)
         self.primarycolorlabel_2.setObjectName(u"primarycolorlabel_2")
+        self.primarycolorlabel_2.setMinimumSize(QSize(120, 0))
 
-        self.horizontalLayout_20.addWidget(self.primarycolorlabel_2)
+        self.verticalLayout_2.addWidget(self.primarycolorlabel_2)
 
-        self.horizontalSpacer_21 = QSpacerItem(10, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_20.addItem(self.horizontalSpacer_21)
-
-        self.colorlabel_2 = QLabel(self.basictab)
-        self.colorlabel_2.setObjectName(u"colorlabel_2")
-
-        self.horizontalLayout_20.addWidget(self.colorlabel_2)
-
+        self.horizontalLayout_20 = QHBoxLayout()
+        self.horizontalLayout_20.setObjectName(u"horizontalLayout_20")
         self.secondary_colorlabel_0 = QLabel(self.basictab)
         self.secondary_colorlabel_0.setObjectName(u"secondary_colorlabel_0")
+        self.secondary_colorlabel_0.setMinimumSize(QSize(20, 0))
 
         self.horizontalLayout_20.addWidget(self.secondary_colorlabel_0)
 
-        self.secondarycolor0edit_0 = QLineEdit(self.basictab)
-        self.secondarycolor0edit_0.setObjectName(u"secondarycolor0edit_0")
-        sizePolicy3.setHeightForWidth(self.secondarycolor0edit_0.sizePolicy().hasHeightForWidth())
-        self.secondarycolor0edit_0.setSizePolicy(sizePolicy3)
-        self.secondarycolor0edit_0.setMinimumSize(QSize(0, 0))
-        self.secondarycolor0edit_0.setMaximumSize(QSize(100, 16777215))
-        self.secondarycolor0edit_0.setMaxLength(9)
+        self.secondarycoloredit_0 = QLineEdit(self.basictab)
+        self.secondarycoloredit_0.setObjectName(u"secondarycoloredit_0")
+        sizePolicy2.setHeightForWidth(self.secondarycoloredit_0.sizePolicy().hasHeightForWidth())
+        self.secondarycoloredit_0.setSizePolicy(sizePolicy2)
+        self.secondarycoloredit_0.setMinimumSize(QSize(90, 0))
+        self.secondarycoloredit_0.setMaximumSize(QSize(100, 16777215))
+        self.secondarycoloredit_0.setMaxLength(9)
 
-        self.horizontalLayout_20.addWidget(self.secondarycolor0edit_0)
+        self.horizontalLayout_20.addWidget(self.secondarycoloredit_0)
 
         self.secondary_colorlabel_1 = QLabel(self.basictab)
         self.secondary_colorlabel_1.setObjectName(u"secondary_colorlabel_1")
+        self.secondary_colorlabel_1.setMinimumSize(QSize(20, 0))
 
         self.horizontalLayout_20.addWidget(self.secondary_colorlabel_1)
 
-        self.secondarycolor0edit_1 = QLineEdit(self.basictab)
-        self.secondarycolor0edit_1.setObjectName(u"secondarycolor0edit_1")
-        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy7.setHorizontalStretch(1)
-        sizePolicy7.setVerticalStretch(0)
-        sizePolicy7.setHeightForWidth(self.secondarycolor0edit_1.sizePolicy().hasHeightForWidth())
-        self.secondarycolor0edit_1.setSizePolicy(sizePolicy7)
-        self.secondarycolor0edit_1.setMaximumSize(QSize(100, 16777215))
-        self.secondarycolor0edit_1.setMaxLength(9)
+        self.secondarycoloredit_1 = QLineEdit(self.basictab)
+        self.secondarycoloredit_1.setObjectName(u"secondarycoloredit_1")
+        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy5.setHorizontalStretch(1)
+        sizePolicy5.setVerticalStretch(0)
+        sizePolicy5.setHeightForWidth(self.secondarycoloredit_1.sizePolicy().hasHeightForWidth())
+        self.secondarycoloredit_1.setSizePolicy(sizePolicy5)
+        self.secondarycoloredit_1.setMinimumSize(QSize(90, 0))
+        self.secondarycoloredit_1.setMaximumSize(QSize(100, 16777215))
+        self.secondarycoloredit_1.setMaxLength(9)
 
-        self.horizontalLayout_20.addWidget(self.secondarycolor0edit_1)
+        self.horizontalLayout_20.addWidget(self.secondarycoloredit_1)
 
         self.secondary_colorlabel_2 = QLabel(self.basictab)
         self.secondary_colorlabel_2.setObjectName(u"secondary_colorlabel_2")
+        self.secondary_colorlabel_2.setMinimumSize(QSize(20, 0))
 
         self.horizontalLayout_20.addWidget(self.secondary_colorlabel_2)
 
-        self.secondarycolor0edit_2 = QLineEdit(self.basictab)
-        self.secondarycolor0edit_2.setObjectName(u"secondarycolor0edit_2")
-        sizePolicy7.setHeightForWidth(self.secondarycolor0edit_2.sizePolicy().hasHeightForWidth())
-        self.secondarycolor0edit_2.setSizePolicy(sizePolicy7)
-        self.secondarycolor0edit_2.setMaximumSize(QSize(100, 16777215))
-        self.secondarycolor0edit_2.setMaxLength(9)
+        self.secondarycoloredit_2 = QLineEdit(self.basictab)
+        self.secondarycoloredit_2.setObjectName(u"secondarycoloredit_2")
+        sizePolicy5.setHeightForWidth(self.secondarycoloredit_2.sizePolicy().hasHeightForWidth())
+        self.secondarycoloredit_2.setSizePolicy(sizePolicy5)
+        self.secondarycoloredit_2.setMinimumSize(QSize(90, 0))
+        self.secondarycoloredit_2.setMaximumSize(QSize(100, 16777215))
+        self.secondarycoloredit_2.setMaxLength(9)
 
-        self.horizontalLayout_20.addWidget(self.secondarycolor0edit_2)
+        self.horizontalLayout_20.addWidget(self.secondarycoloredit_2)
 
         self.secondary_colorlabel_3 = QLabel(self.basictab)
         self.secondary_colorlabel_3.setObjectName(u"secondary_colorlabel_3")
+        self.secondary_colorlabel_3.setMinimumSize(QSize(20, 0))
 
         self.horizontalLayout_20.addWidget(self.secondary_colorlabel_3)
 
-        self.secondarycolor0edit_3 = QLineEdit(self.basictab)
-        self.secondarycolor0edit_3.setObjectName(u"secondarycolor0edit_3")
-        sizePolicy7.setHeightForWidth(self.secondarycolor0edit_3.sizePolicy().hasHeightForWidth())
-        self.secondarycolor0edit_3.setSizePolicy(sizePolicy7)
-        self.secondarycolor0edit_3.setMaximumSize(QSize(100, 16777215))
-        self.secondarycolor0edit_3.setMaxLength(9)
+        self.secondarycoloredit_3 = QLineEdit(self.basictab)
+        self.secondarycoloredit_3.setObjectName(u"secondarycoloredit_3")
+        sizePolicy5.setHeightForWidth(self.secondarycoloredit_3.sizePolicy().hasHeightForWidth())
+        self.secondarycoloredit_3.setSizePolicy(sizePolicy5)
+        self.secondarycoloredit_3.setMinimumSize(QSize(90, 0))
+        self.secondarycoloredit_3.setMaximumSize(QSize(100, 16777215))
+        self.secondarycoloredit_3.setMaxLength(9)
 
-        self.horizontalLayout_20.addWidget(self.secondarycolor0edit_3)
+        self.horizontalLayout_20.addWidget(self.secondarycoloredit_3)
 
         self.secondary_colorlabel_4 = QLabel(self.basictab)
         self.secondary_colorlabel_4.setObjectName(u"secondary_colorlabel_4")
+        self.secondary_colorlabel_4.setMinimumSize(QSize(20, 0))
 
         self.horizontalLayout_20.addWidget(self.secondary_colorlabel_4)
 
-        self.secondarycolor0edit_4 = QLineEdit(self.basictab)
-        self.secondarycolor0edit_4.setObjectName(u"secondarycolor0edit_4")
-        sizePolicy7.setHeightForWidth(self.secondarycolor0edit_4.sizePolicy().hasHeightForWidth())
-        self.secondarycolor0edit_4.setSizePolicy(sizePolicy7)
-        self.secondarycolor0edit_4.setMaximumSize(QSize(100, 16777215))
+        self.secondarycoloredit_4 = QLineEdit(self.basictab)
+        self.secondarycoloredit_4.setObjectName(u"secondarycoloredit_4")
+        sizePolicy5.setHeightForWidth(self.secondarycoloredit_4.sizePolicy().hasHeightForWidth())
+        self.secondarycoloredit_4.setSizePolicy(sizePolicy5)
+        self.secondarycoloredit_4.setMinimumSize(QSize(90, 0))
+        self.secondarycoloredit_4.setMaximumSize(QSize(100, 16777215))
 
-        self.horizontalLayout_20.addWidget(self.secondarycolor0edit_4)
+        self.horizontalLayout_20.addWidget(self.secondarycoloredit_4)
 
         self.horizontalSpacer_22 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -302,33 +300,87 @@ class Ui_OpenPrintTagGui(object):
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_20)
 
+
+        self.horizontalLayout_29.addLayout(self.verticalLayout_2)
+
+        self.picturelabel = QLabel(self.basictab)
+        self.picturelabel.setObjectName(u"picturelabel")
+        self.picturelabel.setMinimumSize(QSize(150, 100))
+
+        self.horizontalLayout_29.addWidget(self.picturelabel)
+
+
+        self.verticalLayout_6.addLayout(self.horizontalLayout_29)
+
+        self.verticalSpacer_3 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_6.addItem(self.verticalSpacer_3)
+
+        self.horizontalLayout_25 = QHBoxLayout()
+        self.horizontalLayout_25.setObjectName(u"horizontalLayout_25")
         self.horizontalLayout_9 = QHBoxLayout()
         self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
         self.transmissiondistancelabel = QLabel(self.basictab)
         self.transmissiondistancelabel.setObjectName(u"transmissiondistancelabel")
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy6.setHorizontalStretch(0)
+        sizePolicy6.setVerticalStretch(0)
+        sizePolicy6.setHeightForWidth(self.transmissiondistancelabel.sizePolicy().hasHeightForWidth())
+        self.transmissiondistancelabel.setSizePolicy(sizePolicy6)
 
         self.horizontalLayout_9.addWidget(self.transmissiondistancelabel)
 
-        self.horizontalSpacer_18 = QSpacerItem(50, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_9.addItem(self.horizontalSpacer_18)
-
         self.transmissiondistanceedit = QLineEdit(self.basictab)
         self.transmissiondistanceedit.setObjectName(u"transmissiondistanceedit")
-        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy8.setHorizontalStretch(0)
-        sizePolicy8.setVerticalStretch(0)
-        sizePolicy8.setHeightForWidth(self.transmissiondistanceedit.sizePolicy().hasHeightForWidth())
-        self.transmissiondistanceedit.setSizePolicy(sizePolicy8)
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy7.setHorizontalStretch(4)
+        sizePolicy7.setVerticalStretch(0)
+        sizePolicy7.setHeightForWidth(self.transmissiondistanceedit.sizePolicy().hasHeightForWidth())
+        self.transmissiondistanceedit.setSizePolicy(sizePolicy7)
+        self.transmissiondistanceedit.setMinimumSize(QSize(80, 0))
+        self.transmissiondistanceedit.setMaximumSize(QSize(120, 16777215))
 
         self.horizontalLayout_9.addWidget(self.transmissiondistanceedit)
 
-        self.horizontalSpacer_12 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.horizontalLayout_9.addItem(self.horizontalSpacer_12)
+        self.horizontalLayout_25.addLayout(self.horizontalLayout_9)
+
+        self.horizontalLayout_24 = QHBoxLayout()
+        self.horizontalLayout_24.setObjectName(u"horizontalLayout_24")
+        self.hardnessshorealabel = QLabel(self.basictab)
+        self.hardnessshorealabel.setObjectName(u"hardnessshorealabel")
+
+        self.horizontalLayout_24.addWidget(self.hardnessshorealabel)
+
+        self.hardnessshoreabox = QSpinBox(self.basictab)
+        self.hardnessshoreabox.setObjectName(u"hardnessshoreabox")
+
+        self.horizontalLayout_24.addWidget(self.hardnessshoreabox)
+
+        self.horizontalLayout_26 = QHBoxLayout()
+        self.horizontalLayout_26.setObjectName(u"horizontalLayout_26")
+        self.hardnessshoredlabel = QLabel(self.basictab)
+        self.hardnessshoredlabel.setObjectName(u"hardnessshoredlabel")
+
+        self.horizontalLayout_26.addWidget(self.hardnessshoredlabel)
+
+        self.hardnessshoredbox = QSpinBox(self.basictab)
+        self.hardnessshoredbox.setObjectName(u"hardnessshoredbox")
+
+        self.horizontalLayout_26.addWidget(self.hardnessshoredbox)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_9)
+        self.horizontalLayout_24.addLayout(self.horizontalLayout_26)
+
+        self.horizontalSpacer_29 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_24.addItem(self.horizontalSpacer_29)
+
+
+        self.horizontalLayout_25.addLayout(self.horizontalLayout_24)
+
+
+        self.verticalLayout_6.addLayout(self.horizontalLayout_25)
 
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
@@ -337,14 +389,15 @@ class Ui_OpenPrintTagGui(object):
 
         self.horizontalLayout_6.addWidget(self.densitylabel)
 
-        self.horizontalSpacer_13 = QSpacerItem(50, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_6.addItem(self.horizontalSpacer_13)
-
         self.densityedit = QLineEdit(self.basictab)
         self.densityedit.setObjectName(u"densityedit")
+        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy8.setHorizontalStretch(0)
+        sizePolicy8.setVerticalStretch(0)
         sizePolicy8.setHeightForWidth(self.densityedit.sizePolicy().hasHeightForWidth())
         self.densityedit.setSizePolicy(sizePolicy8)
+        self.densityedit.setMinimumSize(QSize(80, 0))
+        self.densityedit.setMaximumSize(QSize(80, 16777215))
 
         self.horizontalLayout_6.addWidget(self.densityedit)
 
@@ -353,7 +406,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_6.addItem(self.horizontalSpacer_11)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_6)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_6)
 
         self.horizontalLayout_7 = QHBoxLayout()
         self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
@@ -374,7 +427,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_7.addItem(self.horizontalSpacer_17)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_7)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_7)
 
         self.horizontalLayout_8 = QHBoxLayout()
         self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
@@ -395,7 +448,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_8.addItem(self.horizontalSpacer)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_8)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_8)
 
         self.horizontalLayout_18 = QHBoxLayout()
         self.horizontalLayout_18.setObjectName(u"horizontalLayout_18")
@@ -416,14 +469,14 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_18.addItem(self.horizontalSpacer_2)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_18)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_18)
 
         self.line = QFrame(self.basictab)
         self.line.setObjectName(u"line")
         self.line.setFrameShape(QFrame.Shape.HLine)
         self.line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.verticalLayout_2.addWidget(self.line)
+        self.verticalLayout_6.addWidget(self.line)
 
         self.horizontalLayout_23 = QHBoxLayout()
         self.horizontalLayout_23.setObjectName(u"horizontalLayout_23")
@@ -438,7 +491,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_23.addWidget(self.writetagbtn)
 
 
-        self.verticalLayout_2.addLayout(self.horizontalLayout_23)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_23)
 
         self.tabWidget.addTab(self.basictab, "")
         self.materialtab = QWidget()
@@ -480,7 +533,7 @@ class Ui_OpenPrintTagGui(object):
 
         self.horizontalLayout_2.addWidget(self.materialtypelabel)
 
-        self.materialtypebox = ClearComboBox(self.groupBox)
+        self.materialtypebox = FilterComboBox(self.groupBox)
         self.materialtypebox.setObjectName(u"materialtypebox")
         sizePolicy1.setHeightForWidth(self.materialtypebox.sizePolicy().hasHeightForWidth())
         self.materialtypebox.setSizePolicy(sizePolicy1)
@@ -501,7 +554,7 @@ class Ui_OpenPrintTagGui(object):
 
         self.horizontalLayout.addWidget(self.materialclasslabel)
 
-        self.materialclassbox = ClearComboBox(self.groupBox)
+        self.materialclassbox = FilterComboBox(self.groupBox)
         self.materialclassbox.addItem("")
         self.materialclassbox.setObjectName(u"materialclassbox")
         sizePolicy1.setHeightForWidth(self.materialclassbox.sizePolicy().hasHeightForWidth())
@@ -523,6 +576,37 @@ class Ui_OpenPrintTagGui(object):
         self.temperaturetab.setObjectName(u"temperaturetab")
         self.gridLayout_3 = QGridLayout(self.temperaturetab)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.groupBox_6 = QGroupBox(self.temperaturetab)
+        self.groupBox_6.setObjectName(u"groupBox_6")
+        self.verticalLayout_4 = QVBoxLayout(self.groupBox_6)
+        self.verticalLayout_4.setObjectName(u"verticalLayout_4")
+        self.horizontalLayout_19 = QHBoxLayout()
+        self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
+        self.diameterlabel = QLabel(self.groupBox_6)
+        self.diameterlabel.setObjectName(u"diameterlabel")
+
+        self.horizontalLayout_19.addWidget(self.diameterlabel)
+
+        self.horizontalSpacer_20 = QSpacerItem(13, 20, QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_19.addItem(self.horizontalSpacer_20)
+
+        self.diameteredit = QLineEdit(self.groupBox_6)
+        self.diameteredit.setObjectName(u"diameteredit")
+        self.diameteredit.setMaximumSize(QSize(50, 16777215))
+
+        self.horizontalLayout_19.addWidget(self.diameteredit)
+
+
+        self.verticalLayout_4.addLayout(self.horizontalLayout_19)
+
+        self.verticalSpacer = QSpacerItem(20, 133, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_4.addItem(self.verticalSpacer)
+
+
+        self.gridLayout_3.addWidget(self.groupBox_6, 0, 2, 1, 1)
+
         self.groupBox_3 = QGroupBox(self.temperaturetab)
         self.groupBox_3.setObjectName(u"groupBox_3")
         self.verticalLayout = QVBoxLayout(self.groupBox_3)
@@ -632,38 +716,76 @@ class Ui_OpenPrintTagGui(object):
 
         self.verticalLayout.addLayout(self.horizontalLayout_14)
 
+        self.horizontalLayout_30 = QHBoxLayout()
+        self.horizontalLayout_30.setObjectName(u"horizontalLayout_30")
+        self.chambertemplabel = QLabel(self.groupBox_3)
+        self.chambertemplabel.setObjectName(u"chambertemplabel")
+
+        self.horizontalLayout_30.addWidget(self.chambertemplabel)
+
+        self.horizontalSpacer_21 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_30.addItem(self.horizontalSpacer_21)
+
+        self.chambertempbox = QSpinBox(self.groupBox_3)
+        self.chambertempbox.setObjectName(u"chambertempbox")
+        self.chambertempbox.setMaximum(1200)
+        self.chambertempbox.setValue(90)
+
+        self.horizontalLayout_30.addWidget(self.chambertempbox)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_30)
+
+        self.horizontalLayout_27 = QHBoxLayout()
+        self.horizontalLayout_27.setObjectName(u"horizontalLayout_27")
+        self.minchambertemplabel = QLabel(self.groupBox_3)
+        self.minchambertemplabel.setObjectName(u"minchambertemplabel")
+
+        self.horizontalLayout_27.addWidget(self.minchambertemplabel)
+
+        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_27.addItem(self.horizontalSpacer_13)
+
+        self.minchambertempbox = QSpinBox(self.groupBox_3)
+        self.minchambertempbox.setObjectName(u"minchambertempbox")
+        self.minchambertempbox.setMaximum(1200)
+        self.minchambertempbox.setValue(90)
+
+        self.horizontalLayout_27.addWidget(self.minchambertempbox)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_27)
+
+        self.horizontalLayout_28 = QHBoxLayout()
+        self.horizontalLayout_28.setObjectName(u"horizontalLayout_28")
+        self.maxchambertemplabel = QLabel(self.groupBox_3)
+        self.maxchambertemplabel.setObjectName(u"maxchambertemplabel")
+
+        self.horizontalLayout_28.addWidget(self.maxchambertemplabel)
+
+        self.horizontalSpacer_19 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_28.addItem(self.horizontalSpacer_19)
+
+        self.maxchambertempbox = QSpinBox(self.groupBox_3)
+        self.maxchambertempbox.setObjectName(u"maxchambertempbox")
+        self.maxchambertempbox.setMaximum(1200)
+        self.maxchambertempbox.setValue(90)
+
+        self.horizontalLayout_28.addWidget(self.maxchambertempbox)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_28)
+
 
         self.gridLayout_3.addWidget(self.groupBox_3, 0, 0, 1, 1)
 
-        self.groupBox_6 = QGroupBox(self.temperaturetab)
-        self.groupBox_6.setObjectName(u"groupBox_6")
-        self.layoutWidget_9 = QWidget(self.groupBox_6)
-        self.layoutWidget_9.setObjectName(u"layoutWidget_9")
-        self.layoutWidget_9.setGeometry(QRect(10, 30, 337, 34))
-        self.horizontalLayout_19 = QHBoxLayout(self.layoutWidget_9)
-        self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
-        self.horizontalLayout_19.setContentsMargins(0, 0, 0, 0)
-        self.diameterlabel = QLabel(self.layoutWidget_9)
-        self.diameterlabel.setObjectName(u"diameterlabel")
-
-        self.horizontalLayout_19.addWidget(self.diameterlabel)
-
-        self.horizontalSpacer_20 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_19.addItem(self.horizontalSpacer_20)
-
-        self.diameteredit = QLineEdit(self.layoutWidget_9)
-        self.diameteredit.setObjectName(u"diameteredit")
-
-        self.horizontalLayout_19.addWidget(self.diameteredit)
-
-
-        self.gridLayout_3.addWidget(self.groupBox_6, 0, 1, 1, 2)
-
         self.groupBox_4 = QGroupBox(self.temperaturetab)
         self.groupBox_4.setObjectName(u"groupBox_4")
-        self.gridLayout_9 = QGridLayout(self.groupBox_4)
-        self.gridLayout_9.setObjectName(u"gridLayout_9")
+        self.verticalLayout_5 = QVBoxLayout(self.groupBox_4)
+        self.verticalLayout_5.setObjectName(u"verticalLayout_5")
         self.horizontalLayout_15 = QHBoxLayout()
         self.horizontalLayout_15.setObjectName(u"horizontalLayout_15")
         self.nominalweightlabel = QLabel(self.groupBox_4)
@@ -683,7 +805,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_15.addWidget(self.nominalweightbox)
 
 
-        self.gridLayout_9.addLayout(self.horizontalLayout_15, 0, 0, 1, 1)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_15)
 
         self.horizontalLayout_16 = QHBoxLayout()
         self.horizontalLayout_16.setObjectName(u"horizontalLayout_16")
@@ -704,7 +826,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_16.addWidget(self.actualweightbox)
 
 
-        self.gridLayout_9.addLayout(self.horizontalLayout_16, 1, 0, 1, 1)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_16)
 
         self.horizontalLayout_17 = QHBoxLayout()
         self.horizontalLayout_17.setObjectName(u"horizontalLayout_17")
@@ -725,7 +847,7 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_17.addWidget(self.emptycontainerbox)
 
 
-        self.gridLayout_9.addLayout(self.horizontalLayout_17, 2, 0, 1, 1)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_17)
 
         self.horizontalLayout_21 = QHBoxLayout()
         self.horizontalLayout_21.setObjectName(u"horizontalLayout_21")
@@ -746,14 +868,10 @@ class Ui_OpenPrintTagGui(object):
         self.horizontalLayout_21.addWidget(self.consumedweightbox)
 
 
-        self.gridLayout_9.addLayout(self.horizontalLayout_21, 3, 0, 1, 1)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_21)
 
 
-        self.gridLayout_3.addWidget(self.groupBox_4, 1, 0, 1, 2)
-
-        self.horizontalSpacer_19 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout_3.addItem(self.horizontalSpacer_19, 1, 2, 1, 1)
+        self.gridLayout_3.addWidget(self.groupBox_4, 1, 0, 1, 1)
 
         self.tabWidget.addTab(self.temperaturetab, "")
         self.nfctab = QWidget()
@@ -779,12 +897,22 @@ class Ui_OpenPrintTagGui(object):
 
         self.tabWidget.addTab(self.nfctab, "")
 
-        self.gridLayout_8.addWidget(self.tabWidget, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.tabWidget, 0, 0, 1, 1)
+
+        self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout.addItem(self.verticalSpacer_2, 1, 0, 1, 1)
+
+        self.progressBar = QProgressBar(self.centralwidget)
+        self.progressBar.setObjectName(u"progressBar")
+        self.progressBar.setValue(0)
+
+        self.gridLayout.addWidget(self.progressBar, 2, 0, 1, 1)
 
         OpenPrintTagGui.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(OpenPrintTagGui)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 730, 23))
+        self.menubar.setGeometry(QRect(0, 0, 801, 23))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         OpenPrintTagGui.setMenuBar(self.menubar)
@@ -815,26 +943,28 @@ class Ui_OpenPrintTagGui(object):
         self.materialnamebox.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"PETG Jet Black", None))
         self.materialabbrlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Material abbreviation", None))
         self.label.setText(QCoreApplication.translate("OpenPrintTagGui", u"Country of origin", None))
+        self.countryflaglabel.setText("")
         self.primarycolorlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Primary color", None))
         self.colorlabel.setText("")
-        self.primarycoloredit.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff24292a", None))
+        self.primarycoloredit.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#24292aff", None))
         self.primarycolorraledit.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"RAL2016", None))
-        self.colornamebox.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"Jet Black", None))
         self.td1sbutton.setText(QCoreApplication.translate("OpenPrintTagGui", u"Detect color via TD1S", None))
         self.primarycolorlabel_2.setText(QCoreApplication.translate("OpenPrintTagGui", u"Secondary colors", None))
-        self.colorlabel_2.setText("")
         self.secondary_colorlabel_0.setText("")
-        self.secondarycolor0edit_0.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff000000", None))
+        self.secondarycoloredit_0.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#000000ff", None))
         self.secondary_colorlabel_1.setText("")
-        self.secondarycolor0edit_1.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff000000", None))
+        self.secondarycoloredit_1.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#000000ff", None))
         self.secondary_colorlabel_2.setText("")
-        self.secondarycolor0edit_2.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff000000", None))
+        self.secondarycoloredit_2.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#000000ff", None))
         self.secondary_colorlabel_3.setText("")
-        self.secondarycolor0edit_3.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff000000", None))
+        self.secondarycoloredit_3.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#000000ff", None))
         self.secondary_colorlabel_4.setText("")
-        self.secondarycolor0edit_4.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#ff000000", None))
+        self.secondarycoloredit_4.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"#000000ff", None))
+        self.picturelabel.setText("")
         self.transmissiondistancelabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Transmission distance / Opacity", None))
         self.transmissiondistanceedit.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"0.9", None))
+        self.hardnessshorealabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Hardness Shore A", None))
+        self.hardnessshoredlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Hardness Shore D", None))
         self.densitylabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Density (g/cm\u00b3)", None))
         self.densityedit.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"1,27", None))
         self.gtinlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"GTIN (Global Trade Item Number)", None))
@@ -854,15 +984,18 @@ class Ui_OpenPrintTagGui(object):
         self.materialclassbox.setItemText(0, QCoreApplication.translate("OpenPrintTagGui", u"FFF - Filament", None))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.materialtab), QCoreApplication.translate("OpenPrintTagGui", u"Material", None))
+        self.groupBox_6.setTitle(QCoreApplication.translate("OpenPrintTagGui", u"Specification", None))
+        self.diameterlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Diameter (mm)", None))
+        self.diameteredit.setText(QCoreApplication.translate("OpenPrintTagGui", u"1.75", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("OpenPrintTagGui", u"Temperature", None))
         self.minprinttemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Min Print Temperature (\u00b0C)", None))
         self.maxprinttemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Max Print Temperature (\u00b0C)", None))
         self.preheattemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Preheat Temperature (\u00b0C)", None))
         self.minbedtemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Min Bed Temperature (\u00b0C)", None))
         self.maxbedtemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Max Bed Temperature (\u00b0C)", None))
-        self.groupBox_6.setTitle(QCoreApplication.translate("OpenPrintTagGui", u"Specification", None))
-        self.diameterlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Diameter (mm)", None))
-        self.diameteredit.setText(QCoreApplication.translate("OpenPrintTagGui", u"1.75", None))
+        self.chambertemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Chamber Temperature (\u00b0C)", None))
+        self.minchambertemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Min Chamber Temperature (\u00b0C)", None))
+        self.maxchambertemplabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Max Chamber Temperature (\u00b0C)", None))
         self.groupBox_4.setTitle(QCoreApplication.translate("OpenPrintTagGui", u"Weight Information", None))
         self.nominalweightlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Nominal Weight (g)", None))
         self.actualweightlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Actual Weight (g)", None))

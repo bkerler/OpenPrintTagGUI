@@ -1,6 +1,27 @@
 import serial.tools.list_ports
 import serial
+from PySide6.QtCore import QThread, Signal, QObject
 
+
+class TD1S_WorkerSignals(QObject):
+    finished = Signal(object, object)  # td, color
+    progress = Signal(int)
+    error = Signal(Exception)
+
+# Worker thread
+class DataCollectorThread(QThread):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.signals = TD1S_WorkerSignals()
+        self.parent = parent
+
+    def run(self):
+        try:
+            td, color = collect_data(logger=self.signals.progress.emit)
+            # Emit result to main thread
+            self.signals.finished.emit(td, color)
+        except Exception as e:
+            self.signals.error.emit(e)
 
 # Function to get the port number from the port name
 def get_port_number(port):

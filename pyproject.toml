@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [tool.briefcase]
 project_name = "OpenPrintTagGUI"
 bundle = "de.revskills.openprinttaggui"
-version = "1.0.2"
+version = "1.0.3"
 url = "https://github.com/bkerler/OpenPrintTagGUI"
 license.file = "LICENSE"
 description = "GUI for the Open Print Tag standard"
@@ -40,7 +40,8 @@ requires = [
     "jsonschema~=4.25.1",
     "hidapi",
     "Cython",
-    "pyscard"
+    "pyscard",
+    "requests"
 ]
 test_requires = [
     "pytest",
@@ -162,7 +163,7 @@ maintainers = [
 ]
 readme = "README.md"
 license = {file = "LICENSE"}
-version = "1.0.2"
+version = "1.0.3"
 requires-python = ">= 3.10"
 dependencies = [
 "pyside6",

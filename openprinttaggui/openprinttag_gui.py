@@ -5,13 +5,17 @@
 import os
 import sys
 from collections import deque
+from types import SimpleNamespace
 
-import hid
+import requests
 import yaml
 from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
+
+from openprinttaggui.Library.device_detector import DeviceDetectorWorker, device_list
+from openprinttaggui.Library.nfc_handler import NFC_ReadTagWorker, NFC_WriteTagWorker
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.dirname(script_path))
@@ -23,211 +27,7 @@ from GUI.gui import Ui_OpenPrintTagGui
 from Library.OpenPrintTag.utils.record import Record
 from Library.OpenPrintTag.utils.common import default_config_file
 from Library.OpenPrintTag.utils.nfc_initialize import nfc_initialize, Args
-from Library.pm3_nfc.pm3_hf15 import PM3_HF15
-from Library.td1s import collect_data
-from Library.acs_nfc.acs_hf15 import ACS_HF15
-from Library.s9_nfc.s9_hf15 import S9_HF15
-import serial.tools.list_ports
-
-device_list = [
-    {"vid": 0x9ac4, "pid": 0x4b8f, "reader": 1, "name": "proxmark3"},
-    {"vid": 0x0471, "pid": 0xa112, "reader": 2, "name": "s9"},
-    {"vid": 0x072F, "pid": 0x2303, "reader": 3, "name": "acr1552u-m1"},
-    {"vid": 0x072F, "pid": 0x2308, "reader": 3, "name": "acr1552u-m2"},
-    {"vid": 0x0e0f, "pid": 0x0003, "reader": 3, "name": "VMWARE-ccid"},
-    {"vid": 0xe4b2, "pid": 0x0045, "reader": -1, "name": "td1s"},
-]
-
-
-class DeviceDetectorWorker(QObject):
-    device_detected = Signal(dict)
-    device_removed = Signal(dict)
-    finished = Signal()   # optional
-
-    def __init__(self, device_list, poll_interval_ms=1500):
-        super().__init__()
-        self.device_list = device_list
-        self.poll_interval = poll_interval_ms
-        self.is_running = True
-        self.previous_state = set()
-
-    def stop(self):
-        self.is_running = False
-
-    @Slot()
-    def start_detection(self):
-        while self.is_running:
-            current_state = set()
-
-            for dev_tpl in self.device_list:
-                # --- Serial check ---
-                try:
-                    for port in serial.tools.list_ports.comports():
-                        if port.vid == dev_tpl["vid"] and port.pid == dev_tpl["pid"]:
-                            d = dev_tpl.copy()
-                            d["port"] = port.device
-                            d["type"] = "serial"
-                            current_state.add(tuple(sorted(d.items())))
-                except Exception:
-                    pass  # very important - never let exception kill thread
-
-                # --- HID check ---
-                try:
-                    for info in hid.enumerate(0, 0):
-                        if info["vendor_id"] == dev_tpl["vid"] and info["product_id"] == dev_tpl["pid"]:
-                            d = dev_tpl.copy()
-                            d["port"] = info["path"].decode(errors='replace')
-                            d["type"] = "hid"
-                            current_state.add(tuple(sorted(d.items())))
-                except Exception:
-                    pass
-
-            # Detect added / removed
-            for dev_tuple in current_state - self.previous_state:
-                self.device_detected.emit(dict(dev_tuple))
-
-            for dev_tuple in self.previous_state - current_state:
-                d = dict(dev_tuple)
-                d["port"] = None
-                self.device_removed.emit(d)
-
-            self.previous_state = current_state.copy()
-
-            # Sleep – do NOT use QTimer here
-            QThread.msleep(self.poll_interval)
-
-        self.finished.emit()
-
-# Worker signals
-class TD1S_WorkerSignals(QObject):
-    finished = Signal(object, object)  # td, color
-    progress = Signal(int)
-    error = Signal(Exception)
-
-
-class NFC_WorkerSignals(QObject):
-    progress = Signal(int)  # Progress percentage (0-100)
-    status = Signal(str)  # Status message updates
-    finished = Signal(object)  # Emits the tag object on success (or None)
-    error = Signal(str)  # Emits error message on failure
-
-
-class NFC_WriteTagWorker(QRunnable):
-    def __init__(self, parent, reader: int, port: str = None):
-        super().__init__()
-        self.signals = NFC_WorkerSignals()
-        self.parent = parent
-        self.reader = reader
-        self.port = port
-
-    @Slot()
-    def run(self):
-        self.signals.status.emit("Generating tag data...")
-        try:
-            tagdata = self.parent.generate_tag_data()
-        except Exception as e:
-            self.signals.error.emit(f"Failed to generate tag data: {str(e.__notes__)}")
-            return
-
-        try:
-            if self.reader == 1:
-                self.signals.status.emit("Connecting to Proxmark3...")
-                dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
-            elif self.reader == 2:
-                self.signals.status.emit("Connecting to S9...")
-                dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
-                if dev.getUID() == b"":
-                    self.signals.error.emit(f"Couldn't detect nfc tag.")
-                    return
-            elif self.reader == 3:
-                self.signals.status.emit("Connecting to ACS...")
-                dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
-                if dev.getUID() == b"":
-                    self.signals.error.emit(f"Couldn't detect nfc tag.")
-                    return
-            else:
-                self.signals.error.emit(f"Unknown nfc reader: {str(self.reader)}")
-                return
-        except Exception as e:
-            self.signals.error.emit(f"Failed to connect to reader: {str(e)}")
-            return
-
-        self.signals.status.emit("Writing to NFC tag ...")
-        try:
-            if dev.restore(data_or_filename=tagdata, fast=True, progress=self.signals.progress.emit):
-                self.signals.status.emit("Succeeded writing nfc tag")
-            else:
-                self.signals.error.emit("Error on writing nfc tag")
-        except Exception as e:
-            self.signals.error.emit(f"Error on reading nfc tag: {str(e)}")
-            return
-        pass
-
-
-class NFC_ReadTagWorker(QRunnable):
-    def __init__(self, reader: int, port: str):
-        super().__init__()
-        self.reader = reader
-        self.signals = NFC_WorkerSignals()
-        self.port = port
-
-    @Slot()
-    def run(self):
-        try:
-            if self.reader == 1:
-                self.signals.status.emit("Connecting to Proxmark3...")
-                dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
-            elif self.reader == 2:
-                self.signals.status.emit("Connecting to S9...")
-                dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
-                if dev.getUID() == b"":
-                    self.signals.error.emit(f"Couldn't detect nfc tag.")
-                    return
-            elif self.reader == 3:
-                self.signals.status.emit("Connecting to ACS...")
-                dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
-                if dev.getUID() == b"":
-                    self.signals.error.emit(f"Couldn't detect nfc tag.")
-                    return
-            else:
-                self.signals.error.emit(f"Unknown nfc reader: {str(self.reader)}")
-                return
-        except Exception as e:
-            self.signals.error.emit(f"Failed to connect to reader: {str(e)}")
-            return
-
-        self.signals.status.emit("Reading NFC tag ...")
-        try:
-            # Assuming the progress callback expects a percentage (0-100)
-            tag = dev.dump(filename=None, progress=self.signals.progress.emit)
-        except Exception as e:
-            self.signals.error.emit(f"Error reading NFC tag: {str(e)}")
-            return
-
-        self.signals.status.emit("Parsing tag data...")
-        try:
-            # If load_data is a method on your main window/class, you'll need to pass the data back
-            # and handle parsing in the main thread if it touches UI elements.
-            self.signals.finished.emit(tag)  # tag should have .data attribute
-        except Exception as e:
-            self.signals.error.emit(f"Error parsing NFC tag: {str(e)}")
-
-
-# Worker thread
-class DataCollectorThread(QThread):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.signals = TD1S_WorkerSignals()
-        self.parent = parent
-
-    def run(self):
-        try:
-            td, color = collect_data(logger=self.signals.progress.emit)
-            # Emit result to main thread
-            self.signals.finished.emit(td, color)
-        except Exception as e:
-            self.signals.error.emit(e)
-
+from Library.td1s import collect_data, DataCollectorThread
 
 class DateValidator(QValidator):
     """Validator that only accepts dates in the system locale format."""
@@ -288,6 +88,9 @@ class DatePickerPopup(QDialog):
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.filecache = {}
+        self.packages = {}
+        self.vendors = {}
         self.readers = {}
         self.port = None
         self.reader = None
@@ -301,11 +104,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.default_manufacturers = {}
         self.default_filamenttypes = {}
         self.setupUi(self)
-        self.add_default_manufacturers()
+        self.select_first_brandname()
         self.setup_material()
         self.add_default_material_properties()
-        self.add_filaments()
-
+        self.cache_filenames()
+        self.read_vendors_from_database()
         self.colorlabel.mousePressEvent = self.open_color_picker
         self.secondary_colorlabel_0.mousePressEvent = self.open_secondary0_color_picker
         self.secondary_colorlabel_1.mousePressEvent = self.open_secondary1_color_picker
@@ -346,7 +149,30 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         # We default to Prusament here
         self.brandnamebox.setCurrentText("Prusament")
         self.materialnamebox.setCurrentIndex(0)
-        self.colornamebox.setCurrentIndex(0)
+
+    def cache_filenames(self):
+        for (root, dirs, files) in os.walk(os.path.join(script_path, "Library", "openprinttag-database", "data", "brands"), topdown=True):
+            for file in files:
+                filename = os.path.join(root, file)
+                if ".yaml" == filename[-5:]:
+                    vendorname = os.path.basename(filename).replace(".yaml", "")
+                    vendorpath = os.path.join(script_path, "Library", "openprinttag-database", "data", "materials", vendorname)
+                    for (root, dirs, files) in os.walk(vendorpath, topdown=True):
+                        for file in files:
+                            filename = os.path.join(root, file)
+                            if ".yaml" == filename[-5:]:
+                                if vendorname not in self.filecache:
+                                    self.filecache[vendorname] = {}
+                                materialname = os.path.basename(filename).replace(".yaml", "")
+                                materialpackagepath = os.path.join(script_path, "Library", "openprinttag-database", "data",
+                                                          "material-packages", vendorname)
+                                if materialname not in self.filecache[vendorname]:
+                                    self.filecache[vendorname][materialname] = []
+                                for (root, dirs, files) in os.walk(materialpackagepath, topdown=True):
+                                    for file in files:
+                                        filename = os.path.join(root, file)
+                                        if ".yaml" == filename[-5:] and materialname in file:
+                                            self.filecache[vendorname][materialname].append(filename)
 
     def on_td1s_removed(self):
         self.msg("TD1S removed.")
@@ -463,8 +289,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         else:
             self.msg(f"TD1S TD: {td}\nColor: #{color}", 2000)
             alpha = "%02x" % (int(((100-float(td))/100)*255)&0xFF)
-            self.update_color_label("#" + alpha + color, self.colorlabel)
-            self.primarycoloredit.setText("#" + alpha + color)
+            self.update_color_label("#" + color + alpha, self.colorlabel)
+            self.primarycoloredit.setText("#" + color + alpha)
             self.transmissiondistanceedit.setText(td)
 
     def on_td1s_error(self, exc):
@@ -525,10 +351,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if consumed_weight != 0:
             update_data["aux"] = {}
             update_data["aux"]["consumed_weight"] = consumed_weight
+        material_name = self.materialnamebox.currentText()
+        idx = material_name.rfind(" [")
+        if idx != -1:
+            material_name = material_name[:idx]
         update_data["main"] = dict(
             material_class=self.materialclassbox.currentText().split(" ")[0],
             material_type=self.materialtypebox.currentText().split(" ")[0],
-            material_name=(self.materialnamebox.currentText() + " " + self.colornamebox.currentText())[:31],
+            material_name=material_name[:31],
             brand_name=self.brandnamebox.currentText()[:31],
             manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
             nominal_netto_full_weight=self.nominalweightbox.value(),
@@ -536,7 +366,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             empty_container_weight=self.emptycontainerbox.value()
         )
         if self.materialabbredit.text() != "":
-            update_data["main"]["material_abbrevation"] = self.materialabbredit.text()[:7]
+            update_data["main"]["material_abbreviation"] = self.materialabbredit.text()[:7]
         if self.countryoforiginedit.text() != "":
             update_data["main"]["country_of_origin"] = self.countryoforiginedit.text()[:2]
         if self.gtinedit.text() != "":
@@ -545,26 +375,28 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             update_data["main"]["expiration_date"] = self.locale_to_timestamp(self.dateedit.text())
         if self.primarycoloredit.text() != "":
             update_data["main"]["primary_color"] = self.primarycoloredit.text()
-        if self.secondarycolor0edit_0.text() != "":
-            update_data["main"]["secondary_color_0"] = self.secondarycolor0edit_0.text()
-        if self.secondarycolor0edit_1.text() != "":
-            update_data["main"]["secondary_color_1"] = self.secondarycolor0edit_1.text()
-        if self.secondarycolor0edit_2.text() != "":
-            update_data["main"]["secondary_color_2"] = self.secondarycolor0edit_2.text()
-        if self.secondarycolor0edit_3.text() != "":
-            update_data["main"]["secondary_color_3"] = self.secondarycolor0edit_3.text()
-        if self.secondarycolor0edit_4.text() != "":
-            update_data["main"]["secondary_color_4"] = self.secondarycolor0edit_4.text()
+        if self.secondarycoloredit_0.text() != "":
+            update_data["main"]["secondary_color_0"] = self.secondarycoloredit_0.text()
+        if self.secondarycoloredit_1.text() != "":
+            update_data["main"]["secondary_color_1"] = self.secondarycoloredit_1.text()
+        if self.secondarycoloredit_2.text() != "":
+            update_data["main"]["secondary_color_2"] = self.secondarycoloredit_2.text()
+        if self.secondarycoloredit_3.text() != "":
+            update_data["main"]["secondary_color_3"] = self.secondarycoloredit_3.text()
+        if self.secondarycoloredit_4.text() != "":
+            update_data["main"]["secondary_color_4"] = self.secondarycoloredit_4.text()
         if self.transmissiondistanceedit.text() != "":
             update_data["main"]["transmission_distance"] = float(self.transmissiondistanceedit.text())
         if self.densityedit.text != "":
             update_data["main"]["density"] = float(self.densityedit.text())
-        if self.diameteredit.text() != "1.75":
+        if self.diameteredit.text() != "":
             update_data["main"]["filament_diameter"] = float(self.diameteredit.text())
         # nominal_full_length
         # actual_full_length
-        # shore_hardness_a
-        # shore_hardness_d
+        if self.hardnessshoreabox.value() != 0:
+            update_data["main"]["shore_hardness_a"] = self.hardnessshoreabox.value()
+        if self.hardnessshoredbox.value() != 0:
+            update_data["main"]["shore_hardness_d"] = self.hardnessshoredbox.value()
         # min_nozzle_diameter
         if self.minprinttempbox.value() != 0:
             update_data["main"]["min_print_temperature"] = self.minprinttempbox.value()
@@ -576,9 +408,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             update_data["main"]["max_bed_temperature"] = self.maxbedtempbox.value()
         if self.preheattempbox.value() != 0:
             update_data["main"]["preheat_temperature"] = self.preheattempbox.value()
-        # min_chamber_temperature
-        # max_chamber_temperature
-        # chamber_temperature
+        if self.minchambertempbox.value() != 0:
+            update_data["main"]["min_chamber_temperature"] = self.minchambertempbox.value()
+        if self.maxchambertempbox.value() != 0:
+            update_data["main"]["max_chamber_temperature"] = self.maxchambertempbox.value()
+        if self.chambertempbox.value() != 0:
+            update_data["main"]["chamber_temperature"] = self.chambertempbox.value()
         # container_width
         # container_outer_diameter
         # container_inner_diameter
@@ -599,8 +434,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def on_save_file(self):
         fn = (self.brandnamebox.currentText().replace(" ", "_").replace("-", "_") + "_" +
-              self.materialnamebox.currentText().replace(" ", "_").replace("-", "_") + "_" +
-              self.colornamebox.currentText().replace(" ", "_").replace("-", "_")) + ".bin"
+              self.materialnamebox.currentText().replace(" ", "_").replace("-", "_")) + ".bin"
         filename, selfilter = QFileDialog.getSaveFileName(self, self.tr("Select Tag data file"), dir=fn)
         if filename != "":
             tagdata = self.generate_tag_data()
@@ -644,9 +478,10 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if "material_name" in main:
                 self.materialnamebox.setCurrentText(main["material_name"])
             if "material_abbreviation" in main:
-                self.materialnamebox.setCurrentText(main["material_abbreviation"])
+                self.materialabbredit.setText(main["material_abbreviation"])
             if "country_of_origin" in main:
                 self.countryoforiginedit.setText(main["country_of_origin"])
+                self.country_to_flag(main["country_of_origin"])
             if "gtin" in main:
                 self.gtinedit.setText(str(main["gtin"]))
             if "material_class" in main:
@@ -687,10 +522,16 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.expdateedit.setText(QLocale().toString(dt.date(), QLocale.ShortFormat))
             if "nominal_netto_full_weight" in main:
                 self.nominalweightbox.setValue(main["nominal_netto_full_weight"])
+            else:
+                self.nominalweightbox.setValue(1000)
             if "actual_netto_full_weight" in main:
                 self.actualweightbox.setValue(main["actual_netto_full_weight"])
+            else:
+                self.actualweightbox.setValue(min(self.nominalweightbox.value(),1000))
             if "empty_container_weight" in main:
                 self.emptycontainerbox.setValue(main["empty_container_weight"])
+            else:
+                self.emptycontainerbox.setValue(0)
             if "manufactured_date" in main:
                 timestamp = main["manufactured_date"]
                 dt = QDateTime()
@@ -704,27 +545,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 dt.setSecsSinceEpoch(timestamp)
                 self.expdateedit.setText(QLocale().toString(dt.date(), QLocale.ShortFormat))
             if "primary_color" in main:
-                self.colornamebox.clear()
                 self.primarycoloredit.setText(main["primary_color"])
                 self.update_color_label(main["primary_color"], self.colorlabel)
+            self.picturelabel.setPixmap(QPixmap())
+            colors = []
             for i in range(5):
                 if f"secondary_color_{i}" in main:
-                        secondarycolor = main[f"secondary_color_{i}"]
-                        if i == 0:
-                            self.secondarycolor0edit_0.setText(secondarycolor)
-                            self.update_color_label(secondarycolor, self.secondarycolor0edit_0)
-                        elif i == 1:
-                            self.secondarycolor0edit_1.setText(secondarycolor)
-                            self.update_color_label(secondarycolor, self.secondarycolor0edit_1)
-                        elif i == 2:
-                            self.secondarycolor0edit_2.setText(secondarycolor)
-                            self.update_color_label(secondarycolor, self.secondarycolor0edit_2)
-                        elif i == 3:
-                            self.secondarycolor0edit_3.setText(secondarycolor)
-                            self.update_color_label(secondarycolor, self.secondarycolor0edit_3)
-                        elif i == 4:
-                            self.secondarycolor0edit_4.setText(secondarycolor)
-                            self.update_color_label(secondarycolor, self.secondarycolor0edit_4)
+                    colors.append(main[f"secondary_color_{i}"])
+            self.set_secondary_colors(colors)
+
             if "filament_diameter" in main:
                 self.diameteredit.setText("%.02f" % main["filament_diameter"])
             else:
@@ -733,16 +562,46 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.densityedit.setText("%.02f" % main["density"])
             if "min_print_temperature" in main:
                 self.minprinttempbox.setValue(main["min_print_temperature"])
+            else:
+                self.minprinttempbox.setValue(0)
             if "max_print_temperature" in main:
                 self.maxprinttempbox.setValue(main["max_print_temperature"])
+            else:
+                self.maxprinttempbox.setValue(0)
             if "preheat_temperature" in main:
                 self.preheattempbox.setValue(main["preheat_temperature"])
+            else:
+                self.preheattempbox.setValue(0)
             if "min_bed_temperature" in main:
                 self.minbedtempbox.setValue(main["min_bed_temperature"])
+            else:
+                self.minbedtempbox.setValue(0)
+            if "min_chamber_temperature" in main:
+                self.minchambertempbox.setValue(main["min_chamber_temperature"])
+            else:
+                self.minchambertempbox.setValue(0)
+            if "max_chamber_temperature" in main:
+                self.maxchambertempbox.setValue(main["max_chamber_temperature"])
+            else:
+                self.maxchambertempbox.setValue(0)
+            if "chamber_temperature" in main:
+                self.chambertempbox.setValue(main["chamber_temperature"])
+            else:
+                self.chambertempbox.setValue(0)
             if "max_bed_temperature" in main:
                 self.maxbedtempbox.setValue(main["max_bed_temperature"])
+            else:
+                self.maxbedtempbox.setValue(0)
             if "transmission_distance" in main:
                 self.transmissiondistanceedit.setText("%0.1f" % main["transmission_distance"])
+            if "shore_hardness_d" in main:
+                self.hardnessshoredbox.setValue(main["shore_hardness_d"])
+            else:
+                self.hardnessshoredbox.setValue(0)
+            if "shore_hardness_a" in main:
+                self.hardnessshoreabox.setValue(main["shore_hardness_a"])
+            else:
+                self.hardnessshoreabox.setValue(0)
             self.matpropwidget.filter_check.setChecked(False)
             if "tags" in main:
                 for tag in main["tags"]:
@@ -753,7 +612,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.matpropwidget.filter_check.setChecked(True)
 
             # Make sure uri is read after manufacturer or material change
-            if uri != "":
+            if uri is not None and uri != "":
                 self.includeurlcheckbox.setChecked(True)
                 self.urledit.setText(uri)
             else:
@@ -794,7 +653,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         )
 
         if color.isValid():
-            hex_color = color.name(QColor.HexArgb)
+            hex_color = self.argb_to_rgba(color.name(QColor.HexArgb))
 
             self.primarycoloredit.setText(hex_color)
             self.primarycolorraledit.setText(hex_to_ral(hex_color))
@@ -810,30 +669,30 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         )
 
         if color.isValid():
-            hex_color = color.name(QColor.HexRgb)
+            hex_color = self.argb_to_rgba(color.name(QColor.HexRgb))
 
             editbox.setText(hex_color)
             self.update_color_label(hex_color, labelbox)
 
     def open_secondary0_color_picker(self, event):
         _ = event
-        self.set_secondary(self.secondarycolor0edit_0, self.secondary_colorlabel_0)
+        self.set_secondary(self.secondarycoloredit_0, self.secondary_colorlabel_0)
 
     def open_secondary1_color_picker(self, event):
         _ = event
-        self.set_secondary(self.secondarycolor0edit_1, self.secondary_colorlabel_1)
+        self.set_secondary(self.secondarycoloredit_1, self.secondary_colorlabel_1)
 
     def open_secondary2_color_picker(self, event):
         _ = event
-        self.set_secondary(self.secondarycolor0edit_2, self.secondary_colorlabel_2)
+        self.set_secondary(self.secondarycoloredit_2, self.secondary_colorlabel_2)
 
     def open_secondary3_color_picker(self, event):
         _ = event
-        self.set_secondary(self.secondarycolor0edit_3, self.secondary_colorlabel_3)
+        self.set_secondary(self.secondarycoloredit_3, self.secondary_colorlabel_3)
 
     def open_secondary4_color_picker(self, event):
         _ = event
-        self.set_secondary(self.secondarycolor0edit_4, self.secondary_colorlabel_4)
+        self.set_secondary(self.secondarycoloredit_4, self.secondary_colorlabel_4)
 
     def show_calendar(self, event):
         # Show popup calendar below the line edit
@@ -884,7 +743,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if "preheat_temp" in curfilament:
                 self.preheattempbox.setValue(curfilament["preheat_temp"])
 
-    def add_default_manufacturers(self):
+    def select_first_brandname(self):
         self.brandnamebox.setStyleSheet("""
                     combobox-popup: 0;
                     QListWidget::item { padding: 4px; }
@@ -996,22 +855,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.secondary_colorlabel_4.setFixedSize(20, 20)
         self.secondary_colorlabel_4.setStyleSheet("border: 1px solid #777;")
         self.reset_colors()
-        self.colornamebox.currentTextChanged.connect(self.on_colorname_changed)
 
     def reset_colors(self):
-        self.update_color_label("#FF000000", self.colorlabel)
-        self.update_color_label("#FF000000", self.secondary_colorlabel_0)
-        self.update_color_label("#FF000000", self.secondary_colorlabel_1)
-        self.update_color_label("#FF000000", self.secondary_colorlabel_2)
-        self.update_color_label("#FF000000", self.secondary_colorlabel_3)
-        self.update_color_label("#FF000000", self.secondary_colorlabel_4)
+        self.update_color_label("#000000ff", self.colorlabel)
+        self.set_secondary_colors([])
         self.primarycoloredit.setText("")
         self.primarycolorraledit.setText("")
-        self.secondarycolor0edit_0.setText("")
-        self.secondarycolor0edit_1.setText("")
-        self.secondarycolor0edit_2.setText("")
-        self.secondarycolor0edit_3.setText("")
-        self.secondarycolor0edit_4.setText("")
 
     def add_default_material_properties(self):
         self.tags = self.read_openprinttag_tags()
@@ -1021,7 +870,6 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def setup_color(self, brandname: str, materialname: str, colorname: str):
         if brandname in self.filaments and materialname in self.filaments[brandname]:
             cm = self.filaments[brandname][materialname]
-            self.colornamebox.setCurrentText(colorname)
             if "colors" not in cm:
                 return
             color_props = cm["colors"].get(colorname)
@@ -1053,82 +901,242 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if "tags" in color_props:
                 self.add_material_properties(color_props["tags"])
 
-    def setup_default_material(self, brandname, materialname):
-        if brandname in self.filaments:
-            if materialname in self.filaments[brandname]:
-                self.materialnamebox.setCurrentText(materialname)
-                cm = self.filaments[brandname][materialname]
-                if "material_abbrevation" in cm:
-                    material_abbrevation = cm["material_abbrevation"]
-                    self.materialabbredit.setText(material_abbrevation)
-                if "country_of_origin" in cm:
-                    country_of_origin = cm["country_of_origin"]
-                    self.countryoforiginedit.setText(country_of_origin)
-                if "material_type" in cm:
-                    materialtype = cm["material_type"]
-                    cf = self.default_filamenttypes.get(materialtype)
-                    if cf is not None and "name" in cf:
-                        self.materialtypebox.setCurrentText(materialtype + " - " + cf["name"])
-                        if "bed_max_temp" in cf:
-                            self.maxbedtempbox.setValue(cf["bed_max_temp"])
-                        if "bed_min_temp" in cf:
-                            self.minbedtempbox.setValue(cf["bed_min_temp"])
-                        if "max_temp" in cf:
-                            self.maxprinttempbox.setValue(cf["max_temp"])
-                        if "min_temp" in cf:
-                            self.minprinttempbox.setValue(cf["min_temp"])
-                        if "prehead_temp" in cf:
-                            self.preheattempbox.setValue(cf["preheat_temp"])
-                    else:
-                        self.materialtypebox.setCurrentText(materialtype)
-                if "empty_container_weight" in cm:
-                    self.emptycontainerbox.setValue(cm["empty_container_weight"])
-                if "nominal_netto_full_weight" in cm:
-                    self.nominalweightbox.setValue(cm["nominal_netto_full_weight"])
-                if "actual_netto_full_weight" in cm:
-                    self.actualweightbox.setValue(cm["actual_netto_full_weight"])
-                if "density" in cm:
-                    self.densityedit.setText("%.02f" % cm["density"])
-                if "min_print_temperature" in cm:
-                    self.minprinttempbox.setValue(cm["min_print_temperature"])
-                if "max_print_temperature" in cm:
-                    self.maxprinttempbox.setValue(cm["max_print_temperature"])
-                if "min_bed_temperature" in cm:
-                    self.minbedtempbox.setValue(cm["min_bed_temperature"])
-                if "max_bed_temperature" in cm:
-                    self.maxbedtempbox.setValue(cm["max_bed_temperature"])
-                if "preheat_temperature" in cm:
-                    self.preheattempbox.setValue(cm["preheat_temperature"])
-                if "diameter" in cm:
-                    diameter = cm["diameter"]
-                    self.diameteredit.setText("%.02f" % diameter)
+    def set_secondary_colors(self, colors):
+        if colors == []:
+            colors = ["#000000ff","#000000ff","#000000ff","#000000ff","#000000ff"]
+        i = 0
+        for argb in colors:
+            if i == 0:
+                if argb == "#000000ff":
+                    self.secondarycoloredit_0.setText("")
                 else:
-                    self.diameteredit.setText("1.75")
-                self.colornamebox.clear()
-                if "colors" in cm:
-                    for colorname in cm["colors"]:
-                        self.colornamebox.addItem(f"{colorname}")
-                    self.colornamebox.setCurrentIndex(0)
+                    self.secondarycoloredit_0.setText(argb)
+                self.update_color_label(argb, self.secondary_colorlabel_0)
+            elif i == 1:
+                if argb == "#000000ff":
+                    self.secondarycoloredit_1.setText("")
+                else:
+                    self.secondarycoloredit_1.setText(argb)
+                self.update_color_label(argb, self.secondary_colorlabel_1)
+            elif i == 2:
+                if argb == "#000000ff":
+                    self.secondarycoloredit_2.setText("")
+                else:
+                    self.secondarycoloredit_2.setText(argb)
+                self.update_color_label(argb, self.secondary_colorlabel_2)
+            elif i == 3:
+                if argb == "#000000ff":
+                    self.secondarycoloredit_3.setText("")
+                else:
+                    self.secondarycoloredit_3.setText(argb)
+
+                self.update_color_label(argb, self.secondary_colorlabel_3)
+            elif i == 4:
+                if argb == "#000000ff":
+                    self.secondarycoloredit_4.setText("")
+                else:
+                    self.secondarycoloredit_4.setText(argb)
+                self.update_color_label(argb, self.secondary_colorlabel_4)
+            i += 1
+
+    def rgba_to_argb(self, rgba:str):
+        argb = "#" + rgba[7:9] + rgba[1:7]
+        return argb
+
+    def argb_to_rgba(self, rgba:str):
+        argb = "#" + rgba[3:9] + rgba[1:3]
+        return argb
+
+
+    def setup_default_material(self, brandname, materialname):
+        if materialname in self.filaments:
+            cm = self.filaments[materialname]
+            if hasattr(cm, "abbreviation"):
+                self.materialabbredit.setText(cm.abbreviation)
+            if brandname in self.vendors:
+                curbrand = self.vendors[brandname]
+                if hasattr(curbrand, "countries_of_origin"):
+                    country_of_origin = curbrand.countries_of_origin
+                    if len(country_of_origin) > 0:
+                        self.countryoforiginedit.setText(country_of_origin[0])
+                        self.country_to_flag(country_of_origin[0])
+            if hasattr(cm, "type"):
+                materialtype = cm.type
+                self.materialtypebox.setCurrentText(materialtype)
+                cf = self.default_filamenttypes.get(materialtype)
+                if hasattr(cm, "properties") and "min_bed_temperature" in cm.properties:
+                    self.minbedtempbox.setValue(cm.properties["min_bed_temperature"])
+                elif "bed_min_temp" in cf:
+                    self.minbedtempbox.setValue(cf["bed_min_temp"])
+                if hasattr(cm, "properties") and "max_bed_temperature" in cm.properties:
+                    self.maxbedtempbox.setValue(cm.properties["max_bed_temperature"])
+                elif "bed_max_temp" in cf:
+                    self.maxbedtempbox.setValue(cf["bed_max_temp"])
+                if hasattr(cm, "properties") and "min_print_temperature" in cm.properties:
+                    self.minprinttempbox.setValue(cm.properties["min_print_temperature"])
+                elif "min_temp" in cf:
+                    self.minprinttempbox.setValue(cf["min_temp"])
+                if hasattr(cm, "properties") and "max_print_temperature" in cm.properties:
+                    self.maxprinttempbox.setValue(cm.properties["max_print_temperature"])
+                elif "min_temp" in cf:
+                    self.maxprinttempbox.setValue(cf["max_temp"])
+                if hasattr(cm, "properties") and "preheat_temperature" in cm.properties:
+                    self.preheattempbox.setValue(cm.properties["preheat_temperature"])
+                elif "preheat_temp" in cf:
+                    self.preheattempbox.setValue(cf["preheat_temp"])
+                if hasattr(cm, "properties") and "chamber_temperature" in cm.properties:
+                    self.chambertempbox.setValue(cm.properties["chamber_temperature"])
+                elif "chamber_temp" in cf:
+                    self.chambertempbox.setValue(cf["chamber_temp"])
+                else:
+                    self.chambertempbox.setValue(0)
+                if hasattr(cm, "properties") and "max_chamber_temperature" in cm.properties:
+                    self.maxchambertempbox.setValue(cm.properties["max_chamber_temperature"])
+                elif "max_chamber_temp" in cf:
+                    self.maxchambertempbox.setValue(cf["max_chamber_temp"])
+                else:
+                    self.maxchambertempbox.setValue(0)
+                if hasattr(cm, "properties") and "min_chamber_temperature" in cm.properties:
+                    self.minchambertempbox.setValue(cm.properties["min_chamber_temperature"])
+                elif "min_chamber_temp" in cf:
+                    self.minchambertempbox.setValue(cf["min_chamber_temp"])
+                else:
+                    self.minchambertempbox.setValue(0)
+            if hasattr(cm, "properties"):
+                properties = cm.properties
+                if "density" in properties:
+                    self.densityedit.setText("%.02f" % properties["density"])
+                else:
+                    self.densityedit.setText("")
+                if "hardness_shore_d" in properties:
+                    self.hardnessshoredbox.setValue(properties["hardness_shore_d"])
+                else:
+                    self.hardnessshoredbox.setValue(0)
+                if "hardness_shore_a" in properties:
+                    self.hardnessshoreabox.setValue(properties["hardness_shore_a"])
+                else:
+                    self.hardnessshoreabox.setValue(0)
+            if hasattr(cm,"primary_color"):
+                if "color_rgba" in cm.primary_color:
+                    hex_color = cm.primary_color["color_rgba"]
+                    # We need to convert rgba to argb
+                    self.primarycoloredit.setText(hex_color)
+                    self.primarycolorraledit.setText(hex_to_ral(hex_color))
+                    self.update_color_label(hex_color, self.colorlabel)
+            else:
+                argb = "#000000ff"
+                self.primarycoloredit.setText(argb)
+                self.primarycolorraledit.setText(hex_to_ral(argb))
+                self.update_color_label(argb, self.colorlabel)
+
+            colors = []
+            if hasattr(cm,"secondary_colors"):
+                for color in cm.secondary_colors:
+                    if "color_rgba" in color:
+                        hex_color = color["color_rgba"]
+                        colors.append(hex_color)
+            self.set_secondary_colors(colors)
+
+            # toDo: photos
+            if hasattr(cm,"photos"):
+                for photoitem in cm.photos:
+                    if "url" in photoitem:
+                        url = photoitem["url"]
+                        try:
+                            response = requests.get(url,timeout=1)
+                            pixmap = QPixmap()
+                            pixmap.loadFromData(response.content)
+                            self.picturelabel.setPixmap(pixmap.scaled(self.picturelabel.frameSize(),Qt.KeepAspectRatio))
+                        except Exception as e:
+                            self.picturelabel.setPixmap(QPixmap())
+                        break
+            else:
+                self.picturelabel.setPixmap(QPixmap())
+            if hasattr(cm, "url"):
+                self.urledit.setText(cm.url)
+                self.includeurlcheckbox.setChecked(True)
+            else:
+                self.urledit.setText("")
+                self.includeurlcheckbox.setChecked(False)
+
+            if hasattr(cm,"transmission_distance"):
+                self.transmissiondistanceedit.setText("%.02f" % cm.transmission_distance)
+            else:
+                self.transmissiondistanceedit.setText("")
+
+            # toDo: uuid
+            if hasattr(cm, "uuid"):
+                uuid = cm.uuid
+
+            if hasattr(cm, "class"):
+                self.materialclassbox.setCurrentText(getattr(cm,"class"))
+
+            if hasattr(cm, "tags"):
+                self.add_material_properties(cm.tags)
 
     def on_manufacturer_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
         self.reset_colors()
-        manufacturer = self.brandnamebox.currentText()
-        found = False
-        if manufacturer in self.filaments:
-            found = True
-            self.materialnamebox.clear()
-            for materialname in self.filaments[manufacturer]:
-                self.materialnamebox.addItem(materialname)
-            self.materialnamebox.model().sort(0, Qt.AscendingOrder)
-            self.materialnamebox.setCurrentIndex(0)
-        self.matpropwidget.filter_check.setChecked(found)
+        manufacturername = self.brandnamebox.currentText()
+        if manufacturername in self.vendors:
+            if hasattr(self.vendors[manufacturername], "slug"):
+                manufacturer = self.vendors[manufacturername].slug
+                self.filaments = self.read_filaments_from_database(manufacturer)
+                if manufacturer not in self.filaments:
+                    self.filaments[manufacturer] = self.read_filaments_from_database(manufacturer)
+                filaments = self.filaments[manufacturer]
+                if not filaments:
+                    return
+                self.materialnamebox.clear()
+                for entry in filaments:
+                    prefs = filaments[entry]
+                    if hasattr(prefs, "slug"):
+                        if prefs.slug not in self.packages:
+                            packages = self.read_packages_from_database(vendorname=manufacturer,materialname=prefs.slug)
+                            if packages:
+                                self.packages[prefs.slug] = packages
+                                for package in packages:
+                                    if hasattr(package, "nominal_netto_full_weight"):
+                                        nominal_netto_full_weight = "%.02fKg" % (package.nominal_netto_full_weight/1000)
+                                    else:
+                                        nominal_netto_full_weight = ""
+
+                                    # toDo: filament_diameter is in mm, but database has incorrect format
+                                    package.filament_diameter = package.filament_diameter/1000
+                                    # End of change
+
+                                    diameter = "%.02fmm" % (package.filament_diameter)
+                                    class info:
+                                        materialname=prefs.slug
+                                        if hasattr(package, "nominal_netto_full_weight"):
+                                            nominal_netto_full_weight=package.nominal_netto_full_weight
+                                        if hasattr(package, "filament_diameter"):
+                                            diameter=package.filament_diameter
+                                        if hasattr(package, "empty_container_weight"):
+                                            empty_container_weight=package.empty_container_weight
+                                    if hasattr(prefs,"name"):
+                                        name = prefs.name
+                                        self.materialnamebox.addItem(f"{name} [{nominal_netto_full_weight} {diameter}]",info())
+                            else:
+                                if hasattr(prefs,"name"):
+                                    name = prefs.name
+                                    class info:
+                                        materialname=prefs.slug
+                                        diameter=1750
+                                        nominal_netto_full_weight=1000
+                                        empty_container_weight=0
+                                    self.materialnamebox.addItem(f"{name}", info())
+                    else:
+                        self.materialnamebox.addItem(entry)
+                self.materialnamebox.model().sort(0, Qt.AscendingOrder)
+                self.materialnamebox.setCurrentIndex(0)
+                self.matpropwidget.filter_check.setChecked(False)
 
     def update_color_label(self, hex_color: str, colorlabel: QLabel):
         # Fill a tiny pixmap with the chosen color
         pix = QPixmap(colorlabel.size())
-        pix.fill(QColor(hex_color))
+        pix.fill(QColor(self.rgba_to_argb(hex_color)))
         colorlabel.setPixmap(pix)
 
     def add_material_properties(self, properties):
@@ -1141,27 +1149,57 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.matpropwidget.filter_check.setChecked(True)
         self.matpropwidget.repaint()
 
-    def on_colorname_changed(self):
-        self.reset_colors()
-        brand_name = self.brandnamebox.currentText()
-        material_name = self.materialnamebox.currentText()
-        color_name = self.colornamebox.currentText()
-        if brand_name in self.filaments:
-            materialprops = self.filaments[brand_name].get(material_name)
-            if materialprops is not None:
-                self.setup_color(brand_name, material_name, color_name)
+    def country_to_flag(self, code: str):
+        code = code.upper()
+        if len(code) != 2 or not code.isalpha():
+            txt="🏳️"  # invalid input fallback
+            self.countryflaglabel.setText(txt)
+            return
+        # Regional Indicator Symbol Letters start at U+1F1E6 = ord('🇦')
+        offset = 0x1F1E6 - ord('A')
+        txt=chr(ord(code[0]) + offset) + chr(ord(code[1]) + offset)
+        self.countryflaglabel.setText(txt)
 
     def on_materialname_changed(self):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
         self.reset_colors()
         brandname = self.brandnamebox.currentText()
-        materialname = self.materialnamebox.currentText()
-        if brandname in self.filaments:
-            materialprops = self.filaments[brandname].get(materialname)
-            if materialprops is not None:
-                self.setup_default_material(brandname, materialname)
+        vendorslug=""
+        if brandname in self.vendors:
+            if hasattr(self.vendors[brandname], "slug"):
+                vendorslug = self.vendors[brandname].slug
+        itemdata = self.materialnamebox.currentData()
+        if itemdata and hasattr(itemdata,"materialname"):
+            materialslug = itemdata.materialname
+            self.packages = self.read_packages_from_database(vendorname=vendorslug,materialname=materialslug)
+            if hasattr(itemdata,"diameter") and hasattr(itemdata,"nominal_netto_full_weight"):
+                nominal_netto_full_weight = itemdata.nominal_netto_full_weight
+                diameter = itemdata.diameter
+                for package in self.packages:
+                    if (package.nominal_netto_full_weight == nominal_netto_full_weight and
+                        package.filament_diameter/1000 == diameter):
+                        if hasattr(package,"gtin"):
+                            self.gtinedit.setText("%d" % package.gtin)
+                        break
+            if hasattr(itemdata, "diameter"):
+                self.diameteredit.setText(str(itemdata.diameter))
+            if hasattr(itemdata, "nominal_netto_full_weight"):
+                self.nominalweightbox.setValue(itemdata.nominal_netto_full_weight)
+                self.actualweightbox.setValue(itemdata.nominal_netto_full_weight)
+            else:
+                self.nominalweightbox.setValue(1000)
+                self.actualweightbox.setValue(1000)
 
+            if hasattr(itemdata, "empty_container_weight"):
+                self.emptycontainerbox.setValue(itemdata.empty_container_weight)
+            else:
+                self.emptycontainerbox.setValue(0)
+            materialprops = self.filaments.get(materialslug)
+            if materialprops is not None:
+                self.setup_default_material(brandname, materialslug)
+
+    """ 
     def add_filaments(self):
         self.filaments = {}
         for (root, dirs, files) in os.walk(os.path.join(script_path, "database", "filaments"), topdown=True):
@@ -1179,12 +1217,70 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         for brand_name in self.filaments:
             self.brandnamebox.addItem(brand_name)
         self.brandnamebox.setStyleSheet("""
+#                    combobox-popup: 0;
+#                    QListWidget::item { padding: 4px; }
+#                    QListWidget { border: 1px solid #999; }
+#                """)
+#        self.brandnamebox.currentTextChanged.connect(self.on_manufacturer_changed)
+#        self.brandnamebox.model().sort(0, Qt.AscendingOrder)
+#    """
+
+    def read_vendors_from_database(self):
+        self.vendors = {}
+        for vendorname in self.filecache:
+            fn = os.path.join(script_path, "Library", "openprinttag-database", "data", "brands", vendorname+".yaml")
+            if os.path.exists(fn):
+                vendor_dict = yaml.safe_load(open(fn, "r"))
+                if "name" in vendor_dict and "slug" in vendor_dict:
+                    class Vendor_T:
+                        slug = vendor_dict["slug"]
+                        countries_of_origin = vendor_dict["countries_of_origin"]
+
+                    self.vendors[vendor_dict["name"]] = Vendor_T()
+
+        for brand_name in self.vendors:
+            self.brandnamebox.addItem(brand_name)
+        self.brandnamebox.setStyleSheet("""
                     combobox-popup: 0;
                     QListWidget::item { padding: 4px; }
                     QListWidget { border: 1px solid #999; }
                 """)
         self.brandnamebox.currentTextChanged.connect(self.on_manufacturer_changed)
         self.brandnamebox.model().sort(0, Qt.AscendingOrder)
+
+    def read_filaments_from_database(self, vendorname:str):
+        # self.filecache[vendorname][materialname]
+        filaments = {}
+        if not vendorname in self.filecache:
+            return filaments
+        for material in self.filecache[vendorname]:
+            fn = os.path.join(script_path, "Library", "openprinttag-database", "data", "materials", vendorname, material + ".yaml")
+            if os.path.exists(fn):
+                try:
+                    filament_dict = yaml.safe_load(open(os.path.join(fn), "r"))
+                    fd = SimpleNamespace(**filament_dict)
+                    if hasattr(fd, "slug"):
+                        filaments[fd.slug] = fd
+                except Exception as e:
+                    self.msg(f"YAML Error in {fn}: {str(e)}")
+        return filaments
+
+    def read_packages_from_database(self, vendorname:str, materialname:str) -> list:
+        packages = []
+        if vendorname not in self.filecache or materialname not in self.filecache[vendorname]:
+            return packages
+
+        for fn in self.filecache[vendorname][materialname]:
+            try:
+                package_dict = yaml.safe_load(open(os.path.join(fn), "r"))
+                fd = SimpleNamespace(**package_dict)
+                if hasattr(fd,"material") and "slug" in fd.material:
+                    material_name = fd.material["slug"]
+                    if material_name == materialname:
+                        packages.append(fd)
+            except Exception as e:
+                self.msg(f"YAML Error in {fn}: {str(e)}")
+        return packages
 
     def parse_tag_data(self, data):
         uri = ""
@@ -1202,7 +1298,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
 def main():
     app = QApplication(sys.argv)
-    info = "OpenPrintTagGUI v1.02 (c) B.Kerler"
+    info = "OpenPrintTagGUI v1.03 (c) B.Kerler"
     app.setApplicationName(info)
     widget = GUI_OpenPrintTag()
     widget.setWindowTitle(info)
