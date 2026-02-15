@@ -218,9 +218,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     self.writetagbtn.setDisabled(False)
 
     def on_tag_detected(self, uid):
-        if self.last_read_uid != uid:
+        if self.last_read_uid != uid and uid != b"":
             self.on_read_tag()
-            self.last_read_uid = uid
+        self.last_read_uid = uid
 
     def try_auto_read_tag(self):
         if not self.auto_read_enabled:

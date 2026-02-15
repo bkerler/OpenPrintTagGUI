@@ -122,21 +122,17 @@ class NFC_ReadTagDetect(QRunnable):
     @Slot()
     def run(self):
         try:
+            uid = b""
             if self.reader == 1:
                 dev = PM3_HF15(port=self.port, baudrate=115200, logger=self.signals.status.emit)
             elif self.reader == 2:
                 dev = S9_HF15(port=self.port, logger=self.signals.status.emit)
             elif self.reader == 3:
                 dev = ACS_HF15(port=self.port, logger=self.signals.status.emit)
-            else:
-                return
-            try:
                 uid = dev.getUID()
-            except Exception:
-                return
-            if uid and uid == b"":
+                self.signals.finished.emit(uid)
                 return
             self.signals.finished.emit(uid)
         except Exception as e:
-            return
+            self.signals.finished.emit(b"")
 
