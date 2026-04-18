@@ -166,7 +166,7 @@ license = {file = "LICENSE"}
 version = "1.0.3"
 requires-python = ">= 3.10"
 dependencies = [
-"pyside6",
+"PySide6-Essentials~=6.8",
 "pyserial",
 "ndeflib~=0.3.3",
 "pyyaml~=6.0",
