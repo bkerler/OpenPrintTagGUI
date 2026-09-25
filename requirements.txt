@@ -1,4 +1,4 @@
-pyside6
+PySide6-Essentials~=6.8
 pyserial
 simple_parsing~=0.1.7
 ndeflib~=0.3.3
