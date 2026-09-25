@@ -11,7 +11,7 @@ license.file = "LICENSE"
 description = "GUI for the Open Print Tag standard"
 author = "bkerler"
 author_email = "info@revskills.de"
-requires-python = ">= 3.10"
+requires-python = ">= 3.12"
 
 [tool.briefcase.app.openprinttaggui]
 formal_name = "OpenPrintTagGUI"
@@ -34,7 +34,7 @@ requires = [
     "ndeflib~=0.3.3",
     "cbor2~=5.7.1",
     "jinja2~=3.1.5",
-    "numpy~=2.2.3",
+    "numpy~=2.5.3",
     "simple_parsing~=0.1.7",
     "referencing~=0.37.0",
     "jsonschema~=4.25.1",
@@ -164,7 +164,7 @@ maintainers = [
 readme = "README.md"
 license = {file = "LICENSE"}
 version = "1.0.3"
-requires-python = ">= 3.10"
+requires-python = ">= 3.12"
 dependencies = [
 "PySide6-Essentials~=6.8",
 "pyserial",
@@ -173,7 +173,7 @@ dependencies = [
 "ndeflib~=0.3.3",
 "cbor2~=5.7.1",
 "jinja2~=3.1.5",
-"numpy~=2.2.6",
+"numpy~=2.5.3",
 "simple_parsing~=0.1.7",
 "referencing~=0.37.0",
 "jsonschema~=4.25.1",
