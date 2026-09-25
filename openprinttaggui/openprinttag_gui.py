@@ -7,6 +7,7 @@ import sys
 from collections import deque
 from types import SimpleNamespace
 
+import cbor2
 import requests
 import yaml
 from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
@@ -165,28 +166,37 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             pass
 
     def cache_filenames(self):
-        for (root, dirs, files) in os.walk(os.path.join(script_path, "Library", "openprinttag-database", "data", "brands"), topdown=True):
+        data_path = os.path.join(script_path, "Library", "openprinttag-database", "data")
+        for (root, dirs, files) in os.walk(os.path.join(data_path, "brands"), topdown=True):
             for file in files:
                 filename = os.path.join(root, file)
                 if ".yaml" == filename[-5:]:
                     vendorname = os.path.basename(filename).replace(".yaml", "")
-                    vendorpath = os.path.join(script_path, "Library", "openprinttag-database", "data", "materials", vendorname)
+                    vendorpath = os.path.join(data_path, "materials", vendorname)
+                    material_names = set()
                     for (root, dirs, files) in os.walk(vendorpath, topdown=True):
                         for file in files:
                             filename = os.path.join(root, file)
                             if ".yaml" == filename[-5:]:
-                                if vendorname not in self.filecache:
-                                    self.filecache[vendorname] = {}
-                                materialname = os.path.basename(filename).replace(".yaml", "")
-                                materialpackagepath = os.path.join(script_path, "Library", "openprinttag-database", "data",
-                                                          "material-packages", vendorname)
-                                if materialname not in self.filecache[vendorname]:
-                                    self.filecache[vendorname][materialname] = []
-                                for (root, dirs, files) in os.walk(materialpackagepath, topdown=True):
-                                    for file in files:
-                                        filename = os.path.join(root, file)
-                                        if ".yaml" == filename[-5:] and materialname in file:
-                                            self.filecache[vendorname][materialname].append(filename)
+                                material_names.add(os.path.basename(filename).replace(".yaml", ""))
+                    if not material_names:
+                        continue
+
+                    self.filecache[vendorname] = {name: [] for name in material_names}
+                    materialpackagepath = os.path.join(data_path, "material-packages", vendorname)
+                    for (root, dirs, files) in os.walk(materialpackagepath, topdown=True):
+                        for file in files:
+                            filename = os.path.join(root, file)
+                            if not filename.endswith(".yaml"):
+                                continue
+                            try:
+                                with open(filename, encoding="utf8") as package_file:
+                                    package = yaml.safe_load(package_file) or {}
+                                materialname = package.get("material", {}).get("slug")
+                                if materialname:
+                                    self.filecache[vendorname].setdefault(materialname, []).append(filename)
+                            except Exception as e:
+                                self.msg(f"YAML Error in {filename}: {str(e)}")
 
     def on_td1s_removed(self):
         self.msg("TD1S removed.")
@@ -403,7 +413,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         update_data["main"] = dict(
             material_class=self.materialclassbox.currentText().split(" ")[0],
             material_type=self.materialtypebox.currentText().split(" ")[0],
-            material_name=material_name[:31],
+            material_name=material_name[:63],
             brand_name=self.brandnamebox.currentText()[:31],
             manufactured_date=self.locale_to_timestamp(self.dateedit.text()),
             nominal_netto_full_weight=self.nominalweightbox.value(),
@@ -435,14 +445,13 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.densityedit.text != "":
             update_data["main"]["density"] = float(self.densityedit.text())
         if self.diameteredit.text() != "":
-            update_data["main"]["filament_diameter"] = float(self.diameteredit.text())
+            update_data["main"]["filament_diameter_v2"] = round(float(self.diameteredit.text()) * 1000)
         # nominal_full_length
         # actual_full_length
         if self.hardnessshoreabox.value() != 0:
-            update_data["main"]["shore_hardness_a"] = self.hardnessshoreabox.value()
+            update_data["main"]["hardness_shore_a"] = self.hardnessshoreabox.value()
         if self.hardnessshoredbox.value() != 0:
-            update_data["main"]["shore_hardness_d"] = self.hardnessshoredbox.value()
-        # min_nozzle_diameter
+            update_data["main"]["hardness_shore_d"] = self.hardnessshoredbox.value()
         if self.minprinttempbox.value() != 0:
             update_data["main"]["min_print_temperature"] = self.minprinttempbox.value()
         if self.maxprinttempbox.value() != 0:
@@ -599,8 +608,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     colors.append(main[f"secondary_color_{i}"])
             self.set_secondary_colors(colors)
 
-            if "filament_diameter" in main:
-                self.diameteredit.setText("%.02f" % main["filament_diameter"])
+            if "filament_diameter_v2" in main:
+                self.diameteredit.setText("%.02f" % (main["filament_diameter_v2"] / 1000))
             else:
                 self.diameteredit.setText("1.75")
             if "density" in main:
@@ -639,12 +648,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.maxbedtempbox.setValue(0)
             if "transmission_distance" in main:
                 self.transmissiondistanceedit.setText("%0.1f" % main["transmission_distance"])
-            if "shore_hardness_d" in main:
-                self.hardnessshoredbox.setValue(main["shore_hardness_d"])
+            if "hardness_shore_d" in main:
+                self.hardnessshoredbox.setValue(main["hardness_shore_d"])
             else:
                 self.hardnessshoredbox.setValue(0)
-            if "shore_hardness_a" in main:
-                self.hardnessshoreabox.setValue(main["shore_hardness_a"])
+            if "hardness_shore_a" in main:
+                self.hardnessshoreabox.setValue(main["hardness_shore_a"])
             else:
                 self.hardnessshoreabox.setValue(0)
             self.matpropwidget.filter_check.setChecked(False)
@@ -1145,33 +1154,35 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             if packages:
                                 self.packages[prefs.slug] = packages
                                 for package in packages:
+                                    nominal_netto_full_weight = ""
                                     if hasattr(package, "nominal_netto_full_weight"):
                                         nominal_netto_full_weight = "%.02fKg" % (package.nominal_netto_full_weight/1000)
-                                    else:
-                                        nominal_netto_full_weight = ""
-
-                                    # toDo: filament_diameter is in mm, but database has incorrect format
-                                    package.filament_diameter = package.filament_diameter/1000
-                                    # End of change
-
-                                    diameter = "%.02fmm" % (package.filament_diameter)
-                                    class info:
-                                        materialname=prefs.slug
-                                        if hasattr(package, "nominal_netto_full_weight"):
-                                            nominal_netto_full_weight=package.nominal_netto_full_weight
-                                        if hasattr(package, "filament_diameter"):
-                                            diameter=package.filament_diameter
-                                        if hasattr(package, "empty_container_weight"):
-                                            empty_container_weight=package.empty_container_weight
+                                    package_diameter = getattr(package, "filament_diameter", None)
+                                    diameter = ""
+                                    info = SimpleNamespace(materialname=prefs.slug)
+                                    if hasattr(package, "nominal_netto_full_weight"):
+                                        info.nominal_netto_full_weight = package.nominal_netto_full_weight
+                                    if package_diameter is not None:
+                                        diameter_mm = package_diameter / 1000
+                                        diameter = "%.02fmm" % diameter_mm
+                                        info.diameter = diameter_mm
+                                    if hasattr(package, "empty_container_weight"):
+                                        info.empty_container_weight = package.empty_container_weight
+                                    if hasattr(package, "url"):
+                                        info.url = package.url
+                                    if getattr(package, "gtin", None) is not None:
+                                        info.gtin = package.gtin
                                     if hasattr(prefs,"name"):
                                         name = prefs.name
-                                        self.materialnamebox.addItem(f"{name} [{nominal_netto_full_weight} {diameter}]",info())
+                                        details = " ".join(filter(None, (nominal_netto_full_weight, diameter)))
+                                        label = f"{name} [{details}]" if details else name
+                                        self.materialnamebox.addItem(label, info)
                             else:
                                 if hasattr(prefs,"name"):
                                     name = prefs.name
                                     class info:
                                         materialname=prefs.slug
-                                        diameter=1750
+                                        diameter=1.75
                                         nominal_netto_full_weight=1000
                                         empty_container_weight=0
                                     self.materialnamebox.addItem(f"{name}", info())
@@ -1213,25 +1224,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.urledit.clear()
         self.reset_colors()
         brandname = self.brandnamebox.currentText()
-        vendorslug=""
-        if brandname in self.vendors:
-            if hasattr(self.vendors[brandname], "slug"):
-                vendorslug = self.vendors[brandname].slug
         itemdata = self.materialnamebox.currentData()
         if itemdata and hasattr(itemdata,"materialname"):
             materialslug = itemdata.materialname
-            self.packages = self.read_packages_from_database(vendorname=vendorslug,materialname=materialslug)
-            if hasattr(itemdata,"diameter") and hasattr(itemdata,"nominal_netto_full_weight"):
-                nominal_netto_full_weight = itemdata.nominal_netto_full_weight
-                diameter = itemdata.diameter
-                for package in self.packages:
-                    if (package.nominal_netto_full_weight == nominal_netto_full_weight and
-                        package.filament_diameter/1000 == diameter):
-                        if hasattr(package,"gtin"):
-                            self.gtinedit.setText("%d" % package.gtin)
-                        break
+            gtin = getattr(itemdata, "gtin", None)
+            self.gtinedit.setText(str(gtin) if gtin is not None else "")
             if hasattr(itemdata, "diameter"):
                 self.diameteredit.setText(str(itemdata.diameter))
+            else:
+                self.diameteredit.clear()
             if hasattr(itemdata, "nominal_netto_full_weight"):
                 self.nominalweightbox.setValue(itemdata.nominal_netto_full_weight)
                 self.actualweightbox.setValue(itemdata.nominal_netto_full_weight)
@@ -1246,6 +1247,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             materialprops = self.filaments.get(materialslug)
             if materialprops is not None:
                 self.setup_default_material(brandname, materialslug)
+            if getattr(itemdata, "url", None):
+                self.urledit.setText(itemdata.url)
+                self.includeurlcheckbox.setChecked(True)
 
     """ 
     def add_filaments(self):
@@ -1320,7 +1324,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
         for fn in self.filecache[vendorname][materialname]:
             try:
-                package_dict = yaml.safe_load(open(os.path.join(fn), "r"))
+                with open(fn, encoding="utf8") as package_file:
+                    package_dict = yaml.safe_load(package_file)
                 fd = SimpleNamespace(**package_dict)
                 if hasattr(fd,"material") and "slug" in fd.material:
                     material_name = fd.material["slug"]
@@ -1338,6 +1343,13 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             unknown_fields = dict()
             try:
                 fields[name] = region.read(out_unknown_fields=unknown_fields)
+                if name == "main" and "filament_diameter_v2" not in fields[name]:
+                    for key, value in unknown_fields.items():
+                        if cbor2.loads(bytes.fromhex(key)) == 30:
+                            fields[name]["filament_diameter_v2"] = round(
+                                float(cbor2.loads(bytes.fromhex(value))) * 1000
+                            )
+                            break
             except Exception as err:
                 self.msg(str(err))
         if hasattr(record, "uri"):
