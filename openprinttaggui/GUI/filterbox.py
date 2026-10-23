@@ -14,14 +14,14 @@ class FilterComboBox(QComboBox):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setEditable(True)
         self.setInsertPolicy(QComboBox.NoInsert)
+        self.setLineEdit(ClearLineEdit(self))
+        self.setMaxVisibleItems(5)
 
         completer = self.completer()
         completer.setCompletionMode(QCompleter.PopupCompletion)
         completer.setFilterMode(Qt.MatchContains)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
-
-        # Set custom line edit
-        self.setLineEdit(ClearLineEdit(self))
+        completer.setMaxVisibleItems(5)
 
     def showPopup(self):
         line_edit = self.lineEdit()

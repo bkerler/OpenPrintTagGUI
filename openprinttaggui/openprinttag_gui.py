@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# (c) B.Kerler 2025
+# (c) B.Kerler 2025-2026
 # GPLv3 License
 
 import os
@@ -7,10 +7,15 @@ import sys
 from collections import deque
 from types import SimpleNamespace
 
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.dirname(script_path))
+sys.path.insert(1, script_path)
+sys.path.insert(2, os.path.join(script_path, "Library", "OpenPrintTag", "utils"))
+
 import cbor2
 import requests
 import yaml
-from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
+from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, QSettings, QTranslator, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
@@ -18,10 +23,24 @@ from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxL
 from openprinttaggui.Library.device_detector import DeviceDetectorWorker, device_list
 from openprinttaggui.Library.nfc_handler import NFC_ReadTagWorker, NFC_WriteTagWorker, NFC_ReadTagDetect
 
-script_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, os.path.dirname(script_path))
-sys.path.insert(1, script_path)
-sys.path.insert(2, os.path.join(script_path, "Library", "OpenPrintTag", "utils"))
+LANGUAGES = {
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español",
+    "pl": "Polski",
+    "cs": "Čeština",
+    "uk": "Українська",
+}
+
+
+def load_translator(language, parent):
+    if language == "en":
+        return None
+    translator = QTranslator(parent)
+    filename = os.path.join(script_path, "GUI", "translations", f"openprinttaggui_{language}.qm")
+    return translator if translator.load(filename) else None
+
 
 from GUI.colorconversion import ral_to_hex, hex_to_ral
 from GUI.gui import Ui_OpenPrintTagGui
@@ -87,8 +106,11 @@ class DatePickerPopup(QDialog):
 
 
 class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, language="en", translator=None, language_settings=None):
         super().__init__(parent)
+        self.language = language
+        self.translator = translator
+        self.language_settings = language_settings or QSettings("OpenPrintTag", "OpenPrintTagGUI")
         self.filecache = {}
         self.packages = {}
         self.vendors = {}
@@ -105,6 +127,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.default_manufacturers = {}
         self.default_filamenttypes = {}
         self.setupUi(self)
+        self.app_title = self.windowTitle()
+        self.diameteredit.setText(self.format_number(1.75))
+        self.densityedit.setPlaceholderText(self.format_number(1.27))
+        self.transmissiondistanceedit.setPlaceholderText(self.format_number(0.9, 1))
+        self.setup_language_menu()
         self.select_first_brandname()
         self.setup_material()
         self.add_default_material_properties()
@@ -158,6 +185,53 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
         self.countryoforiginedit.textChanged.connect(self.on_country_change)
 
+    def setup_language_menu(self):
+        self.language_menu = self.menubar.addMenu(self.tr("Language"))
+        self.language_actions = {}
+        for code, name in LANGUAGES.items():
+            action = self.language_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(code == self.language)
+            action.triggered.connect(lambda checked=False, code=code: self.set_language(code))
+            self.language_actions[code] = action
+
+    def set_language(self, language):
+        if language == self.language:
+            return
+
+        translator = load_translator(language, self)
+        if language != "en" and translator is None:
+            self.msg(self.tr("Could not load translation file: %1").replace("%1", language))
+            return
+
+        app = QApplication.instance()
+        if self.translator:
+            app.removeTranslator(self.translator)
+            self.translator.deleteLater()
+        self.translator = translator
+        if translator:
+            app.installTranslator(translator)
+
+        self.language = language
+        self.language_settings.setValue("language", language)
+        diameter = self.diameteredit.text()
+        country_flag = self.countryflaglabel.text()
+        picture = self.picturelabel.pixmap()
+        self.retranslateUi(self)
+        self.diameteredit.setText(diameter)
+        self.countryflaglabel.setText(country_flag)
+        self.picturelabel.setPixmap(picture)
+        for index in range(self.materialclassbox.count()):
+            label = self.materialclassbox.itemData(index)
+            if label:
+                self.materialclassbox.setItemText(index, self.tr(label))
+        self.densityedit.setPlaceholderText(self.format_number(1.27))
+        self.transmissiondistanceedit.setPlaceholderText(self.format_number(0.9, 1))
+        self.setWindowTitle(self.app_title)
+        self.language_menu.setTitle(self.tr("Language"))
+        for code, action in self.language_actions.items():
+            action.setChecked(code == language)
+
 
     def on_country_change(self):
         try:
@@ -196,16 +270,16 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                                 if materialname:
                                     self.filecache[vendorname].setdefault(materialname, []).append(filename)
                             except Exception as e:
-                                self.msg(f"YAML Error in {filename}: {str(e)}")
+                                self.msg(self.tr("YAML Error in %1: %2").replace("%1", filename).replace("%2", str(e)))
 
     def on_td1s_removed(self):
-        self.msg("TD1S removed.")
+        self.msg(self.tr("TD1S removed."))
         self.td1sbutton.setDisabled(True)
 
     def on_device_detected(self, info: dict):
         if "name" in info:
             name = info["name"]
-            self.msg(f"{name} detected.")
+            self.msg(self.tr("%1 detected.").replace("%1", name))
         if "reader" in info:
             reader = info["reader"]
             if reader in self.readers:
@@ -250,7 +324,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def on_device_removed(self, info: dict):
         if "name" in info:
             name = info["name"]
-            self.msg(f"{name} removed.")
+            self.msg(self.tr("%1 removed.").replace("%1", name))
         if "reader" in info:
             reader = info["reader"]
             if reader == -1:
@@ -277,6 +351,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def msg(self, text, value: int = 0):
         self.statusbar.showMessage(self.tr(text), value)
 
+    def parse_number(self, text):
+        value, valid = QLocale().toDouble(text)
+        if not valid:
+            raise ValueError(self.tr("Invalid number: %1").replace("%1", text))
+        return value
+
+    def format_number(self, value, precision=2):
+        return QLocale().toString(float(value), "f", precision)
+
     def set_progress(self, value: int):
         self.progressBar.setValue(value)
         self.progressBar.update()
@@ -284,7 +367,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def on_read_tag(self):
         self.auto_read_timer.stop()
         self.progressBar.setValue(0)
-        self.msg("Starting...")
+        self.msg(self.tr("Starting..."))
 
         worker = NFC_ReadTagWorker(reader=self.reader, port=self.port)
 
@@ -303,9 +386,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
     def handle_tag_read_success(self, tag):
         try:
             self.load_tag_data(tag.data)
-            self.msg("Tag read and parsed successfully.")
+            self.msg(self.tr("Tag read and parsed successfully."))
         except Exception as e:
-            self.msg(f"Error on parsing nfc tag: {str(e)}")
+            self.msg(self.tr("Error on parsing NFC tag: %1").replace("%1", str(e)))
         finally:
             self.set_progress(0)
             self.msg("")
@@ -313,7 +396,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def on_write_tag(self):
         self.set_progress(0)
-        self.msg("Generating tag data...")
+        self.msg(self.tr("Generating tag data..."))
 
         worker = NFC_WriteTagWorker(parent=self, reader=self.reader, port=self.port)
 
@@ -328,28 +411,29 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
     def handle_tag_write_success(self):
         try:
-            self.msg("Tag written successfully.")
+            self.msg(self.tr("Tag written successfully."))
         except Exception as e:
-            self.msg(f"Error on writing nfc tag: {str(e)}")
+            self.msg(self.tr("Error on writing NFC tag: %1").replace("%1", str(e)))
         finally:
             self.set_progress(0)
             self.msg("")
 
     def on_td1s_data_ready(self, td, color):
         if td is None and color is None:
-            self.show_message_box(self.tr("Error"), self.tr("Couldn't detect td1s"), QMessageBox.Icon.Critical)
+            self.show_message_box(self.tr("Error"), self.tr("Couldn't detect TD1S"), QMessageBox.Icon.Critical)
             return
         elif td == "" and color == "":
-            self.msg("TD1S TD: Please try again, no color detected. Insert filament after button click", 0)
+            self.msg(self.tr("TD1S TD: Please try again; no color detected. Insert filament after clicking the button."), 0)
         else:
-            self.msg(f"TD1S TD: {td}\nColor: #{color}", 2000)
-            alpha = "%02x" % (int(((100-float(td))/100)*255)&0xFF)
+            self.msg(self.tr("TD1S TD: %1\nColor: #%2").replace("%1", td).replace("%2", color), 2000)
+            td_value = float(td)
+            alpha = "%02x" % (int(((100-td_value)/100)*255)&0xFF)
             self.update_color_label("#" + color + alpha, self.colorlabel)
             self.primarycoloredit.setText("#" + color + alpha)
-            self.transmissiondistanceedit.setText(td)
+            self.transmissiondistanceedit.setText(self.format_number(td_value, 1))
 
     def on_td1s_error(self, exc):
-        self.show_message_box(self.tr("Error"), self.tr(f"TD1S error: {str(exc)}"), QMessageBox.Icon.Critical)
+        self.show_message_box(self.tr("Error"), self.tr("TD1S error: %1").replace("%1", str(exc)), QMessageBox.Icon.Critical)
 
     def on_td1s_thread_done(self):
         self.td1sbutton.setEnabled(True)
@@ -358,7 +442,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.td1sthread and self.td1sthread.isRunning():
             return  # Already running
 
-        self.msg("Collecting td1s data... please insert filament")
+        self.msg(self.tr("Collecting TD1S data... please insert filament."))
         self.td1sbutton.setEnabled(False)
 
         # Create and start thread
@@ -441,11 +525,11 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if self.secondarycoloredit_4.text() != "":
             update_data["main"]["secondary_color_4"] = self.secondarycoloredit_4.text()
         if self.transmissiondistanceedit.text() != "":
-            update_data["main"]["transmission_distance"] = float(self.transmissiondistanceedit.text())
-        if self.densityedit.text != "":
-            update_data["main"]["density"] = float(self.densityedit.text())
+            update_data["main"]["transmission_distance"] = self.parse_number(self.transmissiondistanceedit.text())
+        if self.densityedit.text() != "":
+            update_data["main"]["density"] = self.parse_number(self.densityedit.text())
         if self.diameteredit.text() != "":
-            update_data["main"]["filament_diameter_v2"] = round(float(self.diameteredit.text()) * 1000)
+            update_data["main"]["filament_diameter"] = self.parse_number(self.diameteredit.text())
         # nominal_full_length
         # actual_full_length
         if self.hardnessshoreabox.value() != 0:
@@ -493,7 +577,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         if filename != "":
             tagdata = self.generate_tag_data()
             if open(filename, "wb").write(tagdata):
-                self.show_message_box(title=self.tr("Info"), message=self.tr(f"Successfully wrote {filename}"))
+                self.show_message_box(title=self.tr("Info"), message=self.tr("Successfully wrote %1").replace("%1", filename))
 
     def check_tag_implies(self, tag):
         dq = deque()
@@ -608,12 +692,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     colors.append(main[f"secondary_color_{i}"])
             self.set_secondary_colors(colors)
 
-            if "filament_diameter_v2" in main:
-                self.diameteredit.setText("%.02f" % (main["filament_diameter_v2"] / 1000))
+            if "filament_diameter" in main:
+                self.diameteredit.setText(self.format_number(main["filament_diameter"]))
             else:
-                self.diameteredit.setText("1.75")
+                self.diameteredit.setText(self.format_number(1.75))
             if "density" in main:
-                self.densityedit.setText("%.02f" % main["density"])
+                self.densityedit.setText(self.format_number(main["density"]))
             if "min_print_temperature" in main:
                 self.minprinttempbox.setValue(main["min_print_temperature"])
             else:
@@ -647,7 +731,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             else:
                 self.maxbedtempbox.setValue(0)
             if "transmission_distance" in main:
-                self.transmissiondistanceedit.setText("%0.1f" % main["transmission_distance"])
+                self.transmissiondistanceedit.setText(self.format_number(main["transmission_distance"], 1))
             if "hardness_shore_d" in main:
                 self.hardnessshoredbox.setValue(main["hardness_shore_d"])
             else:
@@ -680,7 +764,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             try:
                 self.load_tag_data(data)
             except Exception as e:
-                self.msg(f"Error on parsing nfc tag: {str(e)}")
+                self.msg(self.tr("Error on parsing NFC tag: %1").replace("%1", str(e)))
 
     def setup_date_view(self):
         self.dateedit.setPlaceholderText(QLocale().dateFormat(QLocale.ShortFormat))
@@ -810,7 +894,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_class_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title=self.tr("Error"),
-                                  message=self.tr(f"Couldn't find material class database at {mc_filename}"),
+                                  message=self.tr("Couldn't find material class database at %1").replace("%1", mc_filename),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename, encoding="utf8").read())
         for item in mc:
@@ -822,14 +906,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         mcc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tag_categories_enum.yaml")
         if not os.path.exists(mcc_filename):
             self.show_message_box(title=self.tr("Error"),
-                                  message=self.tr(f"Couldn't find categories database at {mcc_filename}"),
+                                  message=self.tr("Couldn't find categories database at %1").replace("%1", mcc_filename),
                                   icon=QMessageBox.Icon.Critical)
         mcc = yaml.safe_load(open(mcc_filename, encoding="utf8").read())
 
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "tags_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title=self.tr("Error"),
-                                  message=self.tr(f"Couldn't find tags database at {mc_filename}"),
+                                  message=self.tr("Couldn't find tags database at %1").replace("%1", mc_filename),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename, encoding="utf8").read())
         for citem in mcc:
@@ -853,13 +937,13 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         mt_filename = os.path.join(script_path, "database", "material_temps.yaml")
         if not os.path.exists(mt_filename):
             self.show_message_box(title=self.tr("Error"),
-                                  message=self.tr(f"Couldn't find material temp database at {mt_filename}"),
+                                  message=self.tr("Couldn't find material temp database at %1").replace("%1", mt_filename),
                                   icon=QMessageBox.Icon.Critical)
         default_filamenttypes = yaml.safe_load(open(mt_filename).read())
         mc_filename = os.path.join(script_path, "Library", "OpenPrintTag", "data", "material_type_enum.yaml")
         if not os.path.exists(mc_filename):
             self.show_message_box(title=self.tr("Error"),
-                                  message=self.tr(f"Couldn't find material type database at {mc_filename}"),
+                                  message=self.tr("Couldn't find material type database at %1").replace("%1", mc_filename),
                                   icon=QMessageBox.Icon.Critical)
         mc = yaml.safe_load(open(mc_filename).read())
         for item in mc:
@@ -882,9 +966,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.default_filamenttypes = self.read_openprinttag_material_types()
         materialclasses = self.read_openprinttag_material_class()
         self.materialclassbox.clear()
+        class_labels = {
+            "FFF": self.tr("FFF - Filament"),
+            "SLA": self.tr("SLA - Resin"),
+        }
         idx = 0
         for materialclass in materialclasses:
-            self.materialclassbox.addItem(materialclass + " - " + materialclasses[materialclass])
+            label = materialclass + " - " + materialclasses[materialclass]
+            self.materialclassbox.addItem(class_labels.get(materialclass, label), label)
             idx += 1
         for filament in self.default_filamenttypes:
             self.materialtypebox.addItem(filament + " - " + self.default_filamenttypes[filament]["name"])
@@ -941,7 +1030,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if "transmission_distance" in color_props:
                 transmission_distance = color_props["transmission_distance"]
                 if transmission_distance is not None:
-                    self.transmissiondistanceedit.setText("%.01f" % color_props["transmission_distance"])
+                    self.transmissiondistanceedit.setText(self.format_number(color_props["transmission_distance"], 1))
             self.includeurlcheckbox.setChecked(False)
             if "uri" in color_props:
                 uri = color_props["uri"]
@@ -1062,7 +1151,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if hasattr(cm, "properties"):
                 properties = cm.properties
                 if "density" in properties:
-                    self.densityedit.setText("%.02f" % properties["density"])
+                    self.densityedit.setText(self.format_number(properties["density"]))
                 else:
                     self.densityedit.setText("")
                 if "hardness_shore_d" in properties:
@@ -1117,7 +1206,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.includeurlcheckbox.setChecked(False)
 
             if hasattr(cm,"transmission_distance"):
-                self.transmissiondistanceedit.setText("%.02f" % cm.transmission_distance)
+                self.transmissiondistanceedit.setText(self.format_number(cm.transmission_distance))
             else:
                 self.transmissiondistanceedit.setText("")
 
@@ -1164,7 +1253,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                                         info.nominal_netto_full_weight = package.nominal_netto_full_weight
                                     if package_diameter is not None:
                                         diameter_mm = package_diameter / 1000
-                                        diameter = "%.02fmm" % diameter_mm
+                                        diameter = f"{self.format_number(diameter_mm)}mm"
                                         info.diameter = diameter_mm
                                     if hasattr(package, "empty_container_weight"):
                                         info.empty_container_weight = package.empty_container_weight
@@ -1230,7 +1319,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             gtin = getattr(itemdata, "gtin", None)
             self.gtinedit.setText(str(gtin) if gtin is not None else "")
             if hasattr(itemdata, "diameter"):
-                self.diameteredit.setText(str(itemdata.diameter))
+                self.diameteredit.setText(self.format_number(itemdata.diameter))
             else:
                 self.diameteredit.clear()
             if hasattr(itemdata, "nominal_netto_full_weight"):
@@ -1265,7 +1354,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                             if "material_name" in filament_dict:
                                 self.filaments[brand_name] = filament_dict["material_name"]
                     except Exception as e:
-                        self.msg(f"YAML Error in {filename}: {str(e)}")
+                        self.msg(self.tr("YAML Error in %1: %2").replace("%1", filename).replace("%2", str(e)))
         for brand_name in self.filaments:
             self.brandnamebox.addItem(brand_name)
         self.brandnamebox.setStyleSheet("""
@@ -1314,7 +1403,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     if hasattr(fd, "slug"):
                         filaments[fd.slug] = fd
                 except Exception as e:
-                    self.msg(f"YAML Error in {fn}: {str(e)}")
+                    self.msg(self.tr("YAML Error in %1: %2").replace("%1", fn).replace("%2", str(e)))
         return filaments
 
     def read_packages_from_database(self, vendorname:str, materialname:str) -> list:
@@ -1332,7 +1421,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     if material_name == materialname:
                         packages.append(fd)
             except Exception as e:
-                self.msg(f"YAML Error in {fn}: {str(e)}")
+                self.msg(self.tr("YAML Error in %1: %2").replace("%1", fn).replace("%2", str(e)))
         return packages
 
     def parse_tag_data(self, data):
@@ -1343,11 +1432,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             unknown_fields = dict()
             try:
                 fields[name] = region.read(out_unknown_fields=unknown_fields)
-                if name == "main" and "filament_diameter_v2" not in fields[name]:
+                if name == "main" and "filament_diameter" not in fields[name]:
                     for key, value in unknown_fields.items():
-                        if cbor2.loads(bytes.fromhex(key)) == 30:
-                            fields[name]["filament_diameter_v2"] = round(
-                                float(cbor2.loads(bytes.fromhex(value))) * 1000
+                        # Key 61 was briefly used for diameter in micrometers.
+                        if cbor2.loads(bytes.fromhex(key)) == 61:
+                            fields[name]["filament_diameter"] = (
+                                float(cbor2.loads(bytes.fromhex(value))) / 1000
                             )
                             break
             except Exception as err:
@@ -1358,9 +1448,19 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
 def main():
     app = QApplication(sys.argv)
-    info = "OpenPrintTagGUI v1.03 (c) B.Kerler"
+    language_settings = QSettings("OpenPrintTag", "OpenPrintTagGUI")
+    language = language_settings.value("language", QLocale.system().name().split("_")[0], type=str)
+    if language not in LANGUAGES:
+        language = "en"
+    translator = load_translator(language, app)
+    if language != "en" and translator is None:
+        language = "en"
+    if translator:
+        app.installTranslator(translator)
+    info = "OpenPrintTagGUI v1.04 (c) B.Kerler"
     app.setApplicationName(info)
-    widget = GUI_OpenPrintTag()
+    widget = GUI_OpenPrintTag(language=language, translator=translator, language_settings=language_settings)
+    widget.app_title = info
     widget.setWindowTitle(info)
     if len(sys.argv) > 1:
         filename = sys.argv[1]
