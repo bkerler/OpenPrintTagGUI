@@ -17,7 +17,7 @@ import cbor2
 import requests
 import yaml
 from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, QSettings, QTranslator, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool, QSignalBlocker
-from PySide6.QtGui import QValidator, QColor, QPixmap
+from PySide6.QtGui import QValidator, QColor, QPixmap, QIcon
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
 
@@ -172,8 +172,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.detector_worker.device_detected.connect(self.on_device_detected,Qt.QueuedConnection)
         self.detector_worker.device_removed.connect(self.on_device_removed,Qt.QueuedConnection)
         # Clean up
-        self.detector_thread.finished.connect(self.detector_thread.deleteLater,Qt.QueuedConnection)
-        self.detector_worker.finished.connect(self.detector_worker.deleteLater,Qt.QueuedConnection)
+        self.detector_thread.finished.connect(self.detector_worker.deleteLater)
+        self._shutdown_complete = False
+        QApplication.instance().aboutToQuit.connect(self.shutdown)
         self.detector_thread.start()
 
         # Auto-read polling
@@ -187,6 +188,25 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.materialnamebox.setCurrentIndex(0)
 
         self.countryoforiginedit.textChanged.connect(self.on_country_change)
+
+    def shutdown(self):
+        if self._shutdown_complete:
+            return
+        self.auto_read_enabled = False
+        self.auto_read_timer.stop()
+        # The worker runs a polling loop, so a queued stop slot cannot run.
+        self.detector_worker.stop()
+        self.detector_thread.quit()
+        self.detector_thread.wait()
+        self.threadpool.clear()
+        self.threadpool.waitForDone()
+        if self.td1sthread is not None:
+            self.td1sthread.wait()
+        self._shutdown_complete = True
+
+    def closeEvent(self, event):
+        self.shutdown()
+        super().closeEvent(event)
 
     def setup_language_menu(self):
         self.language_menu = self.menubar.addMenu(self.tr("Language"))
@@ -1464,6 +1484,7 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
 
 def main():
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(os.path.join(script_path, "openprinttag_gui-256.png")))
     language_settings = QSettings("OpenPrintTag", "OpenPrintTagGUI")
     language = language_settings.value("language", QLocale.system().name().split("_")[0], type=str)
     if language not in LANGUAGES:

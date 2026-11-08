@@ -7,6 +7,7 @@ from smartcard.Exceptions import CardRequestTimeoutException
 from smartcard.System import readers
 from smartcard.util import toHexString
 from smartcard.ATR import ATR
+from openprinttaggui.Library.acs_nfc.reader_names import is_supported_reader
 import os, sys
 import platform
 
@@ -61,7 +62,7 @@ class ACS:
         reader_names = [str(reader) for reader in readers()]
         reader_names = [
             name for name in reader_names
-            if ("ACR1552" in name.upper() or name.upper().startswith("VMWARE ")) and "SAM" not in name.upper()
+            if is_supported_reader(name)
         ]
         if not reader_names:
             raise RuntimeError("No ACS contactless PC/SC reader found.")

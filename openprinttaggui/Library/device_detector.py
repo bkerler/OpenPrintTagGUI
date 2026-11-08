@@ -1,5 +1,7 @@
 import hid
 import serial.tools.list_ports
+from smartcard.System import readers as pcsc_readers
+from openprinttaggui.Library.acs_nfc.reader_names import is_supported_reader
 from PySide6.QtCore import QThread, Signal, QObject, Slot
 
 device_list = [
@@ -32,7 +34,22 @@ class DeviceDetectorWorker(QObject):
         while self.is_running:
             current_state = set()
 
+            # CCID readers are exposed through PC/SC, not serial or HID.
+            try:
+                for reader in pcsc_readers():
+                    name = str(reader)
+                    if is_supported_reader(name):
+                        current_state.add(tuple(sorted({
+                            "reader": 3, "name": name, "port": name,
+                            "type": "pcsc",
+                        }.items())))
+            except Exception:
+                # PC/SC can be unavailable until a reader is attached.
+                pass
+
             for dev_tpl in self.device_list:
+                if dev_tpl["reader"] == 3:
+                    continue
                 # --- Serial check ---
                 try:
                     for port in serial.tools.list_ports.comports():
