@@ -179,7 +179,8 @@ dependencies = [
 "jsonschema~=4.25.1",
 "hidapi",
 "Cython",
-"pyscard"
+"pyscard",
+"requests"
 ]
 classifiers = [
   "Development Status :: 4 - Beta",

@@ -14,17 +14,23 @@ from openprinttaggui.Library.OpenPrintTag.utils.record import Record
 
 
 class OpenPrintTagCompatibilityTests(unittest.TestCase):
-    def test_reads_legacy_diameter_and_prefers_new_field(self):
+    def test_reads_diameter_and_prefers_current_field(self):
         empty_tag = nfc_initialize(Args(size=304, aux_region=32, config_file=default_config_file))
-        for fields, expected in (({30: 1.75}, 1750), ({61: 2850, 30: 1.75}, 2850)):
-            record = Record(default_config_file, memoryview(bytearray(empty_tag)))
-            encoded = cbor2.dumps(fields)
-            record.main_region.memory[:] = bytearray(len(record.main_region.memory))
-            record.main_region.memory[:len(encoded)] = encoded
+        # Key 30 is the current millimeter field; retired key 61 used micrometers.
+        for fields, expected in (
+            ({30: 1.75}, 1.75),
+            ({61: 2850}, 2.85),
+            ({61: 2850, 30: 1.75}, 1.75),
+        ):
+            with self.subTest(fields=fields):
+                record = Record(default_config_file, memoryview(bytearray(empty_tag)))
+                encoded = cbor2.dumps(fields)
+                record.main_region.memory[:] = bytearray(len(record.main_region.memory))
+                record.main_region.memory[:len(encoded)] = encoded
 
-            app = SimpleNamespace(msg=self.fail)
-            parsed, _ = openprinttag_gui.GUI_OpenPrintTag.parse_tag_data(app, record.data.tobytes())
-            self.assertEqual(parsed["main"]["filament_diameter_v2"], expected)
+                app = SimpleNamespace(msg=self.fail)
+                parsed, _ = openprinttag_gui.GUI_OpenPrintTag.parse_tag_data(app, record.data.tobytes())
+                self.assertAlmostEqual(parsed["main"]["filament_diameter"], expected)
 
     def test_indexes_packages_by_material_slug_without_optional_diameter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
