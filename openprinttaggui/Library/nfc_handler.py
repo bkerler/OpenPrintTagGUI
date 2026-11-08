@@ -26,7 +26,7 @@ class NFC_WriteTagWorker(QRunnable):
         try:
             tagdata = self.parent.generate_tag_data()
         except Exception as e:
-            self.signals.error.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Failed to generate tag data: %1").replace("%1", str(e.__notes__)))
+            self.signals.error.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Failed to generate tag data: %1").replace("%1", str(e)))
             return
 
         try:
@@ -56,10 +56,11 @@ class NFC_WriteTagWorker(QRunnable):
         try:
             if dev.restore(data_or_filename=tagdata, fast=True, progress=self.signals.progress.emit):
                 self.signals.status.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Succeeded writing NFC tag"))
+                self.signals.finished.emit(None)
             else:
                 self.signals.error.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Error on writing NFC tag"))
         except Exception as e:
-            self.signals.error.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Error on reading NFC tag: %1").replace("%1", str(e)))
+            self.signals.error.emit(QCoreApplication.translate("GUI_OpenPrintTag", "Error on writing NFC tag: %1").replace("%1", str(e)))
             return
         pass
 

@@ -3,6 +3,7 @@
 # GPLv3 License
 
 import os
+import re
 import sys
 from collections import deque
 from types import SimpleNamespace
@@ -15,7 +16,7 @@ sys.path.insert(2, os.path.join(script_path, "Library", "OpenPrintTag", "utils")
 import cbor2
 import requests
 import yaml
-from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, QSettings, QTranslator, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool
+from PySide6.QtCore import Qt, QLocale, QDate, QDateTime, QSettings, QTranslator, Signal, QObject, QThread, QTimer, Slot, QRunnable, QThreadPool, QSignalBlocker
 from PySide6.QtGui import QValidator, QColor, QPixmap
 from PySide6.QtWidgets import QMainWindow, QApplication, QCalendarWidget, QVBoxLayout, QDialog, \
     QColorDialog, QFileDialog, QLabel, QMessageBox, QLineEdit
@@ -118,6 +119,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.port = None
         self.reader = None
         self.threadpool = QThreadPool()
+        self.threadpool.setMaxThreadCount(1)
+        self.is_writing_tag = False
         self.td1sthread = None
         self.aux_region_size = None
         self.aux_region_offset = None
@@ -293,6 +296,9 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.reader = reader
                 if "port" in info:
                     self.port = info["port"]
+                if self.is_writing_tag:
+                    self.auto_read_enabled = True
+                    return
                 if not self.readtagbtn.isEnabled():
                     self.readtagbtn.setDisabled(False)
                     if not self.auto_read_enabled:
@@ -302,11 +308,15 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                     self.writetagbtn.setDisabled(False)
 
     def on_tag_detected(self, uid):
+        if self.is_writing_tag:
+            return
         if self.last_read_uid != uid and uid != b"":
             self.on_read_tag()
         self.last_read_uid = uid
 
     def try_auto_read_tag(self):
+        if self.is_writing_tag or self.threadpool.activeThreadCount():
+            return
         if not self.auto_read_enabled:
             return
         if self.reader is None or self.reader <= 0:
@@ -340,13 +350,10 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             if not enabled:
                 self.reader = 0
                 self.port = None
-                if self.readtagbtn.isEnabled():
-                    self.readtagbtn.setDisabled(True)
-                    if self.auto_read_enabled:
-                        self.auto_read_timer.stop()
-                        self.auto_read_enabled = False
-                if self.writetagbtn.isEnabled():
-                    self.writetagbtn.setDisabled(True)
+                self.readtagbtn.setDisabled(True)
+                self.writetagbtn.setDisabled(True)
+                self.auto_read_timer.stop()
+                self.auto_read_enabled = False
 
     def msg(self, text, value: int = 0):
         self.statusbar.showMessage(self.tr(text), value)
@@ -365,6 +372,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.progressBar.update()
 
     def on_read_tag(self):
+        if self.is_writing_tag:
+            return
         self.auto_read_timer.stop()
         self.progressBar.setValue(0)
         self.msg(self.tr("Starting..."))
@@ -380,10 +389,14 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.threadpool.start(worker)
 
     def handle_tag_error(self, msg):
+        if self.is_writing_tag:
+            return
         self.msg(str(msg))
         self.auto_read_timer.start(1000)
 
     def handle_tag_read_success(self, tag):
+        if self.is_writing_tag:
+            return
         try:
             self.load_tag_data(tag.data)
             self.msg(self.tr("Tag read and parsed successfully."))
@@ -395,6 +408,12 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.auto_read_timer.start(1000)
 
     def on_write_tag(self):
+        if self.is_writing_tag:
+            return
+        self.is_writing_tag = True
+        self.auto_read_timer.stop()
+        self.readtagbtn.setDisabled(True)
+        self.writetagbtn.setDisabled(True)
         self.set_progress(0)
         self.msg(self.tr("Generating tag data..."))
 
@@ -403,20 +422,21 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         # Connect signals to UI updates
         worker.signals.progress.connect(self.set_progress)
         worker.signals.status.connect(self.msg)
-        worker.signals.error.connect(lambda msg: self.msg(msg))  # Reuse your existing msg method
-        worker.signals.finished.connect(self.handle_tag_write_success)
+        worker.signals.error.connect(self.handle_tag_write_finished)
+        worker.signals.finished.connect(self.handle_tag_write_finished)
 
         # Start the worker in the thread pool
         self.threadpool.start(worker)
 
-    def handle_tag_write_success(self):
-        try:
-            self.msg(self.tr("Tag written successfully."))
-        except Exception as e:
-            self.msg(self.tr("Error on writing NFC tag: %1").replace("%1", str(e)))
-        finally:
-            self.set_progress(0)
-            self.msg("")
+    def handle_tag_write_finished(self, error):
+        self.is_writing_tag = False
+        self.set_progress(0)
+        self.msg(error or self.tr("Tag written successfully."))
+        connected = self.reader is not None and self.reader > 0
+        self.readtagbtn.setEnabled(connected)
+        self.writetagbtn.setEnabled(connected)
+        if self.auto_read_enabled and connected:
+            self.auto_read_timer.start(1000)
 
     def on_td1s_data_ready(self, td, color):
         if td is None and color is None:
@@ -491,9 +511,6 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
             update_data["aux"] = {}
             update_data["aux"]["consumed_weight"] = consumed_weight
         material_name = self.materialnamebox.currentText()
-        idx = material_name.rfind(" [")
-        if idx != -1:
-            material_name = material_name[:idx]
         update_data["main"] = dict(
             material_class=self.materialclassbox.currentText().split(" ")[0],
             material_type=self.materialtypebox.currentText().split(" ")[0],
@@ -757,6 +774,24 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
                 self.includeurlcheckbox.setChecked(False)
                 self.urledit.setText("")
 
+            matches = []
+            for index in range(self.materialvariantbox.count()):
+                package = self.materialvariantbox.itemData(index)
+                if "gtin" in main and getattr(package, "gtin", None) != main["gtin"]:
+                    continue
+                if "nominal_netto_full_weight" in main and package.nominal_netto_full_weight != main["nominal_netto_full_weight"]:
+                    continue
+                if "filament_diameter" in main and getattr(package, "filament_diameter", None) != main["filament_diameter"] * 1000:
+                    continue
+                matches.append(index)
+            if uri:
+                url_matches = [index for index in matches
+                               if getattr(self.materialvariantbox.itemData(index), "url", None) == uri]
+                if url_matches:
+                    matches = url_matches
+            with QSignalBlocker(self.materialvariantbox):
+                self.materialvariantbox.setCurrentIndex(matches[0] if len(matches) == 1 else -1)
+
     def on_load_file(self):
         filename, selfilter = QFileDialog.getOpenFileName(self, self.tr("Select Tag data file"))
         if filename != "" and os.path.exists(filename):
@@ -985,6 +1020,8 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.materialtypebox.setCurrentIndex(0)
         self.materialtypebox.currentTextChanged.connect(self.on_filament_type_changed)
         self.materialnamebox.currentTextChanged.connect(self.on_materialname_changed)
+        self.materialvariantbox.currentIndexChanged.connect(self.on_materialvariant_changed)
+        self.materialvariantbox.hide()
         self.colorlabel.setFixedSize(20, 20)
         self.colorlabel.setStyleSheet("border: 1px solid #777;")
         self.secondary_colorlabel_0.setFixedSize(20, 20)
@@ -1224,62 +1261,33 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
         self.reset_colors()
-        manufacturername = self.brandnamebox.currentText()
-        if manufacturername in self.vendors:
-            if hasattr(self.vendors[manufacturername], "slug"):
-                manufacturer = self.vendors[manufacturername].slug
-                self.filaments = self.read_filaments_from_database(manufacturer)
-                if manufacturer not in self.filaments:
-                    self.filaments[manufacturer] = self.read_filaments_from_database(manufacturer)
-                filaments = self.filaments[manufacturer]
-                if not filaments:
-                    return
-                self.materialnamebox.clear()
-                for entry in filaments:
-                    prefs = filaments[entry]
-                    if hasattr(prefs, "slug"):
-                        if prefs.slug not in self.packages:
-                            packages = self.read_packages_from_database(vendorname=manufacturer,materialname=prefs.slug)
-                            if packages:
-                                self.packages[prefs.slug] = packages
-                                for package in packages:
-                                    nominal_netto_full_weight = ""
-                                    if hasattr(package, "nominal_netto_full_weight"):
-                                        nominal_netto_full_weight = "%.02fKg" % (package.nominal_netto_full_weight/1000)
-                                    package_diameter = getattr(package, "filament_diameter", None)
-                                    diameter = ""
-                                    info = SimpleNamespace(materialname=prefs.slug)
-                                    if hasattr(package, "nominal_netto_full_weight"):
-                                        info.nominal_netto_full_weight = package.nominal_netto_full_weight
-                                    if package_diameter is not None:
-                                        diameter_mm = package_diameter / 1000
-                                        diameter = f"{self.format_number(diameter_mm)}mm"
-                                        info.diameter = diameter_mm
-                                    if hasattr(package, "empty_container_weight"):
-                                        info.empty_container_weight = package.empty_container_weight
-                                    if hasattr(package, "url"):
-                                        info.url = package.url
-                                    if getattr(package, "gtin", None) is not None:
-                                        info.gtin = package.gtin
-                                    if hasattr(prefs,"name"):
-                                        name = prefs.name
-                                        details = " ".join(filter(None, (nominal_netto_full_weight, diameter)))
-                                        label = f"{name} [{details}]" if details else name
-                                        self.materialnamebox.addItem(label, info)
-                            else:
-                                if hasattr(prefs,"name"):
-                                    name = prefs.name
-                                    class info:
-                                        materialname=prefs.slug
-                                        diameter=1.75
-                                        nominal_netto_full_weight=1000
-                                        empty_container_weight=0
-                                    self.materialnamebox.addItem(f"{name}", info())
-                    else:
-                        self.materialnamebox.addItem(entry)
-                self.materialnamebox.model().sort(0, Qt.AscendingOrder)
-                self.materialnamebox.setCurrentIndex(0)
-                self.matpropwidget.filter_check.setChecked(False)
+        manufacturer = self.vendors.get(self.brandnamebox.currentText())
+        self.filaments = self.read_filaments_from_database(manufacturer.slug) if manufacturer else {}
+        with QSignalBlocker(self.materialnamebox):
+            self.materialnamebox.clear()
+            for slug, material in self.filaments.items():
+                self.materialnamebox.addItem(getattr(material, "name", slug), slug)
+            self.materialnamebox.model().sort(0, Qt.AscendingOrder)
+            self.materialnamebox.setCurrentIndex(0)
+        self.on_materialname_changed()
+        self.matpropwidget.filter_check.setChecked(False)
+
+    def package_variant_label(self, package):
+        details = []
+        weight = getattr(package, "nominal_netto_full_weight", None)
+        if weight is not None:
+            details.append(f"{weight / 1000:.2f}Kg")
+        diameter = getattr(package, "filament_diameter", None)
+        if diameter is not None:
+            details.append(f"{diameter / 1000:.2f}mm")
+        variant = package.slug.removeprefix(package.material["slug"] + "-")
+        variant = re.sub(r"(^|-)\d+(?:\.\d+)?(?:kg|g|mm|um)?(?=-|$)", "", variant)
+        variant = variant.strip("-").replace("-", " ").title()
+        if variant == "Spool" and "nfc" in getattr(package, "url", "").lower():
+            variant = "Current NFC Spool"
+        if variant:
+            details.append(variant)
+        return ",".join(details)
 
     def update_color_label(self, hex_color: str, colorlabel: QLabel):
         # Fill a tiny pixmap with the chosen color
@@ -1312,33 +1320,41 @@ class GUI_OpenPrintTag(QMainWindow, Ui_OpenPrintTagGui):
         self.includeurlcheckbox.setChecked(False)
         self.urledit.clear()
         self.reset_colors()
-        brandname = self.brandnamebox.currentText()
-        itemdata = self.materialnamebox.currentData()
-        if itemdata and hasattr(itemdata,"materialname"):
-            materialslug = itemdata.materialname
-            gtin = getattr(itemdata, "gtin", None)
-            self.gtinedit.setText(str(gtin) if gtin is not None else "")
-            if hasattr(itemdata, "diameter"):
-                self.diameteredit.setText(self.format_number(itemdata.diameter))
-            else:
-                self.diameteredit.clear()
-            if hasattr(itemdata, "nominal_netto_full_weight"):
-                self.nominalweightbox.setValue(itemdata.nominal_netto_full_weight)
-                self.actualweightbox.setValue(itemdata.nominal_netto_full_weight)
-            else:
-                self.nominalweightbox.setValue(1000)
-                self.actualweightbox.setValue(1000)
-
-            if hasattr(itemdata, "empty_container_weight"):
-                self.emptycontainerbox.setValue(itemdata.empty_container_weight)
-            else:
-                self.emptycontainerbox.setValue(0)
-            materialprops = self.filaments.get(materialslug)
-            if materialprops is not None:
+        with QSignalBlocker(self.materialvariantbox):
+            self.materialvariantbox.clear()
+            material_index = self.materialnamebox.findText(self.materialnamebox.currentText())
+            materialslug = self.materialnamebox.itemData(material_index)
+            if material_index >= 0 and material_index != self.materialnamebox.currentIndex():
+                with QSignalBlocker(self.materialnamebox):
+                    self.materialnamebox.setCurrentIndex(material_index)
+            if materialslug in self.filaments:
+                brandname = self.brandnamebox.currentText()
                 self.setup_default_material(brandname, materialslug)
-            if getattr(itemdata, "url", None):
-                self.urledit.setText(itemdata.url)
-                self.includeurlcheckbox.setChecked(True)
+                if materialslug not in self.packages:
+                    self.packages[materialslug] = self.read_packages_from_database(
+                        self.vendors[brandname].slug, materialslug)
+                for package in self.packages[materialslug]:
+                    self.materialvariantbox.addItem(self.package_variant_label(package), package)
+                self.materialvariantbox.model().sort(0, Qt.AscendingOrder)
+                self.materialvariantbox.setCurrentIndex(0)
+            self.materialvariantbox.setVisible(self.materialvariantbox.count() > 1)
+        if materialslug in self.filaments:
+            self.on_materialvariant_changed()
+
+    def on_materialvariant_changed(self):
+        package = self.materialvariantbox.currentData()
+        gtin = getattr(package, "gtin", None)
+        self.gtinedit.setText(str(gtin) if gtin is not None else "")
+        diameter = getattr(package, "filament_diameter", 1750 if package is None else None)
+        self.diameteredit.setText(self.format_number(diameter / 1000) if diameter is not None else "")
+        weight = getattr(package, "nominal_netto_full_weight", 1000)
+        self.nominalweightbox.setValue(weight)
+        self.actualweightbox.setValue(weight)
+        self.emptycontainerbox.setValue(getattr(package, "empty_container_weight", 0))
+        material = self.filaments.get(self.materialnamebox.currentData())
+        url = getattr(package, "url", None) or getattr(material, "url", "")
+        self.urledit.setText(url)
+        self.includeurlcheckbox.setChecked(bool(url))
 
     """ 
     def add_filaments(self):

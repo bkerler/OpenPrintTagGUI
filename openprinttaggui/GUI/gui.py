@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'gui.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.1
+## Created by: Qt User Interface Compiler version 6.11.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -97,6 +97,16 @@ class Ui_OpenPrintTagGui(object):
         self.materialnamebox.setSizePolicy(sizePolicy1)
 
         self.horizontalLayout_4.addWidget(self.materialnamebox)
+
+        self.materialvariantbox = QComboBox(self.basictab)
+        self.materialvariantbox.setObjectName(u"materialvariantbox")
+        sizePolicy1.setHeightForWidth(self.materialvariantbox.sizePolicy().hasHeightForWidth())
+        self.materialvariantbox.setSizePolicy(sizePolicy1)
+        self.materialvariantbox.setEditable(False)
+        self.materialvariantbox.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.materialvariantbox.setMinimumContentsLength(24)
+
+        self.horizontalLayout_4.addWidget(self.materialvariantbox)
 
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_4)
@@ -941,6 +951,9 @@ class Ui_OpenPrintTagGui(object):
         self.brandnamebox.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"Prusament", None))
         self.materialnamelabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Material name", None))
         self.materialnamebox.setPlaceholderText(QCoreApplication.translate("OpenPrintTagGui", u"PETG Jet Black", None))
+#if QT_CONFIG(accessibility)
+        self.materialvariantbox.setAccessibleName(QCoreApplication.translate("OpenPrintTagGui", u"Package variant", None))
+#endif // QT_CONFIG(accessibility)
         self.materialabbrlabel.setText(QCoreApplication.translate("OpenPrintTagGui", u"Material abbreviation", None))
         self.label.setText(QCoreApplication.translate("OpenPrintTagGui", u"Country of origin", None))
         self.countryflaglabel.setText("")
