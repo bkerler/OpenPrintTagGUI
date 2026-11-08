@@ -7,7 +7,8 @@ project_name = "OpenPrintTagGUI"
 bundle = "de.revskills.openprinttaggui"
 version = "1.0.4"
 url = "https://github.com/bkerler/OpenPrintTagGUI"
-license.file = "LICENSE"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 description = "GUI for the Open Print Tag standard"
 author = "bkerler"
 author_email = "info@revskills.de"
@@ -127,7 +128,7 @@ linuxdeploy_plugins = [
 
 [tool.briefcase.app.openprinttaggui.linux.flatpak]
 flatpak_runtime = "org.kde.Platform"
-flatpak_runtime_version = "6.9"
+flatpak_runtime_version = "6.10"
 flatpak_sdk = "org.kde.Sdk"
 finish_arg."socket=pcsc" = true
 finish_arg."device=all" = true
@@ -136,7 +137,7 @@ modules_extra_content = """
     buildsystem: simple
     sources:
       - type: archive
-        url: https://pcsclite.apdu.fr/files/pcsc-lite-2.0.3.tar.bz2
+        url: https://archive.ubuntu.com/ubuntu/pool/main/p/pcsc-lite/pcsc-lite_2.0.3.orig.tar.bz2
         sha256: f42ee9efa489e9ff5d328baefa26f9c515be65021856e78d99ad1f0ead9ec85d
     build-commands:
       - ./configure --prefix=/app --disable-static --enable-shared --disable-polkit
@@ -162,7 +163,8 @@ maintainers = [
     {name = "Bjoern Kerler", email = "info@revskills.de"}
 ]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 version = "1.0.4"
 requires-python = ">= 3.12"
 dependencies = [
@@ -185,7 +187,6 @@ dependencies = [
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Operating System :: OS Independent",
 ]
 keywords = ["openprinttag", "prusa", "3dprinting", "filament", "nfc"]
